@@ -1,0 +1,326 @@
+:root {
+  /* Dark slate-blue theme - high contrast, accessible */
+  --color-background: #0a1628;
+  --color-surface: #152238;
+  --color-surface-2: #1a2942;
+  --color-text: #e8eef5;
+  --color-muted: #9aa5b8;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-accent: #fbbf24;
+  --color-accent-text: #1a2942;
+  --color-border: #2d3d54;
+  --color-focus: #fbbf24;
+  --color-error: #ef4444;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+
+  /* Typography */
+  --font-size-base: 16px;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --line-height-base: 1.6;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+/* Strong focus indicators for accessibility */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus) inset;
+}
+
+/* Ensure interactive elements have clear focus states without bleeding outside the control */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus) inset;
+}
+
+/* Override native browser focus styling (not just :focus-visible) to prevent UI bleed */
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus) inset;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--spacing-md);
+}
+
+h1 { font-size: var(--font-size-2xl); }
+h2 { font-size: var(--font-size-xl); }
+h3 { font-size: var(--font-size-lg); }
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+/* Remove link underline from navigation items */
+a.nav-link {
+  text-decoration: none;
+}
+
+/* High contrast for better readability */
+::selection {
+  background-color: var(--color-accent);
+  color: #ffffff;
+}
+
+/* ============================================================================
+   Utility Classes
+   ============================================================================ */
+
+/* Surface - card container */
+.surface {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-lg);
+}
+
+/* Toolbar row - horizontal controls section */
+.toolbarRow {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--spacing-md);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Field - label + input container */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.field label {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  color: var(--color-muted);
+}
+
+/* Notice boxes */
+.notice {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-lg);
+  font-weight: 600;
+}
+
+.notice-info {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-color: var(--color-info);
+  color: var(--color-text);
+}
+
+.notice-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: var(--color-warning);
+  color: var(--color-text);
+}
+
+.notice-error {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: var(--color-error);
+  color: var(--color-text);
+}
+
+/* Enhanced input/select/textarea styles */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+select,
+textarea {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  line-height: var(--line-height-base);
+  color: var(--color-text);
+  background-color: var(--color-surface-2);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus-visible,
+input[type="number"]:focus-visible,
+input[type="email"]:focus-visible,
+input[type="password"]:focus-visible,
+input[type="search"]:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus) inset;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 0.7;
+}
+
+/* Enhanced button styles */
+button {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button:hover {
+  background-color: var(--color-surface-2);
+  border-color: var(--color-muted);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus) inset;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.btn-primary {
+  color: var(--color-text);
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+button.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+button.btn-success {
+  color: var(--color-text);
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+button.btn-error {
+  color: var(--color-text);
+  background-color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+/* Enhanced table styles */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-background);
+  border: 2px solid var(--color-border);
+}
+
+table th,
+table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  border-bottom: 2px solid var(--color-border);
+}
+
+table th {
+  background-color: var(--color-surface);
+  font-weight: 700;
+  border-bottom: 3px solid var(--color-border);
+}
+
+table tbody tr:nth-child(even) {
+  background-color: var(--color-surface);
+}
+
+table tbody tr:hover {
+  background-color: var(--color-surface-2);
+}
+
+table tfoot tr {
+  background-color: var(--color-surface);
+  border-top: 3px solid var(--color-border);
+  font-weight: 700;
+}
+
+table tfoot td {
+  border-bottom: none;
+}

@@ -1,0 +1,69 @@
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  background-color: var(--color-surface);
+  border-bottom: 3px solid var(--color-border);
+  padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  color: var(--color-text);
+}
+
+.app-nav {
+  background-color: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  padding: 0 var(--spacing-xl);
+}
+
+.nav-list {
+  display: flex;
+  list-style: none;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item {
+  margin: 0;
+}
+
+.nav-link {
+  display: block;
+  padding: var(--spacing-md) var(--spacing-lg);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.nav-link:hover {
+  background-color: var(--color-surface-2);
+}
+
+.nav-link-active {
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+  border-bottom-color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Clear visual indicator for keyboard navigation */
+.nav-link:focus-visible {
+  background-color: var(--color-surface-2);
+}
+
+.app-main {
+  flex: 1;
+  padding: var(--spacing-xl);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
