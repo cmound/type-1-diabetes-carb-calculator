@@ -112,6 +112,13 @@ export interface MealSession {
   category: MealCategory;
   primarySource: MealSource;
   notes?: string;
+  // Additional fields for saved sessions
+  bsl?: number; // blood sugar level
+  sessionDate?: string; // formatted date MM/DD/YYYY
+  sessionTime?: string; // formatted time h:mm AM/PM
+  lineItems?: MealLineItem[]; // snapshot of line items when saved
+  totals?: MacroTotals; // calculated totals when saved
+  saved?: boolean; // flag to indicate if this is a saved session
 }
 
 // Meal journal entry

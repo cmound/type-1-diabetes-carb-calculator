@@ -230,6 +230,18 @@ export async function updateMealSession(id: string, patch: Partial<Omit<MealSess
   await putOne('mealSessions', updated);
 }
 
+// Upsert a full meal session (explicit save)
+export async function saveMealSession(session: MealSession): Promise<void> {
+  await putOne('mealSessions', session);
+}
+
+// List all saved meal sessions, sorted by timestamp (newest first)
+export async function listMealSessions(): Promise<MealSession[]> {
+  const db = await openDb();
+  const all = await db.getAll('mealSessions');
+  return all.sort((a, b) => b.timestamp - a.timestamp);
+}
+
 export async function deleteMealSession(id: string): Promise<void> {
   await deleteOne('mealSessions', id);
 }

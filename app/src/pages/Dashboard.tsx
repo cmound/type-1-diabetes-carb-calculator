@@ -14,6 +14,7 @@ import {
   createMealSession,
   getMealSessionById,
   updateMealSession,
+  saveMealSession,
   addMealLineItem,
   listMealLineItems,
   updateMealLineItem,
@@ -29,10 +30,37 @@ const ACTIVE_SESSION_KEY = 'activeSessionId';
 
 type ServingUnit = 'g' | 'mL' | 'cup' | 'tbsp' | 'tsp' | 'fl oz' | 'oz' | 'piece';
 type PerUnitOption = 'serving' | 'g' | 'oz' | 'ml' | 'cup' | 'tbsp' | 'tsp' | 'piece' | 'can' | 'bottle' | 'bag';
-type PerQuantityUnit = 'burger' | 'sandwich' | 'taco' | 'wrap' | 'slice' | 'piece' | 'order' | 'basket' | 'packet' | 'cup' | 'oz' | 'fl oz' | 'lb' | 'combo' | 'drink' | 'side';
-
 const perUnitOptions: PerUnitOption[] = ['serving', 'g', 'oz', 'ml', 'cup', 'tbsp', 'tsp', 'piece', 'can', 'bottle', 'bag'];
-const perQuantityUnitOptions: PerQuantityUnit[] = ['burger', 'sandwich', 'taco', 'wrap', 'slice', 'piece', 'order', 'basket', 'packet', 'cup', 'oz', 'fl oz', 'lb', 'combo', 'drink', 'side'];
+type PerQuantityUnit =
+  | 'burger'
+  | 'sandwich'
+  | 'taco'
+  | 'wrap'
+  | 'slice'
+  | 'piece'
+  | 'order'
+  | 'basket'
+  | 'packet'
+  | 'oz'
+  | 'fl oz'
+  | 'cup'
+  | 'serving';
+
+const perQuantityUnitOptions: PerQuantityUnit[] = [
+  'burger',
+  'sandwich',
+  'taco',
+  'wrap',
+  'slice',
+  'piece',
+  'order',
+  'basket',
+  'packet',
+  'oz',
+  'fl oz',
+  'cup',
+  'serving',
+];
 
 interface FoodFormData {
   name: string;
@@ -42,7 +70,7 @@ interface FoodFormData {
   servingSizeUnit: ServingUnit;
   perQuantityRaw: string;
   perUnit: PerUnitOption;
-  perQuantityUnit: PerQuantityUnit; // For Fast Food and Restaurant
+  perQuantityUnit?: PerQuantityUnit; // For Fast Food and Restaurant (optional)
   calories: string;
   fatG: string;
   sodiumMg: string;
@@ -61,7 +89,6 @@ const initialFormData: FoodFormData = {
   servingSizeUnit: 'g',
   perQuantityRaw: '1',
   perUnit: 'serving',
-  perQuantityUnit: 'order',
   calories: '0',
   fatG: '0',
   sodiumMg: '0',
@@ -104,7 +131,6 @@ export function Dashboard() {
     hours = hours % 12 || 12; // Convert to 12-hour format, 0 becomes 12
     const formattedTime = `${hours}:${minutes} ${ampm}`;
     
-    setLastActionAt(now);
     setSessionDate(formattedDate);
     setSessionTime(formattedTime);
   }
@@ -167,6 +193,11 @@ export function Dashboard() {
     try {
       await updateMealSession(session.id, { primarySource: source });
       setSession({ ...session, primarySource: source });
+      const isEatingOut = source === 'Fast Food' || source === 'Restaurant';
+      setFormData((prev) => ({
+        ...prev,
+        perQuantityUnit: isEatingOut ? (prev.perQuantityUnit ?? 'order') : undefined,
+      }));
     } catch (error) {
       console.error('[Dashboard] Failed to update source:', error);
     }
@@ -267,8 +298,8 @@ export function Dashboard() {
       if (isFastFoodOrRestaurant) {
         // For Fast Food/Restaurant: no servingSize, perType is perQuantityUnit
         servingSize = undefined;
-        perType = formData.perQuantityUnit;
-        notes = `${formData.perQuantityRaw} ${formData.perQuantityUnit}`;
+        perType = formData.perQuantityUnit ?? 'order';
+        notes = `${formData.perQuantityRaw} ${formData.perQuantityUnit ?? 'order'}`;
       } else {
         // For other sources: use servingSizeAmount/Unit, perType is perUnit
         servingSize = `${servingSizeAmount}${formData.servingSizeUnit}`;
@@ -358,6 +389,55 @@ export function Dashboard() {
     } catch (error) {
       console.error('[Dashboard] Failed to delete item:', error);
       alert('Failed to delete item');
+    }
+  }
+
+  async function handleSaveSession() {
+    if (!session) return;
+    
+    // Don't save empty sessions
+    if (lineItems.length === 0) {
+      alert('Cannot save an empty meal session. Please add at least one food item.');
+      return;
+    }
+
+    try {
+      // Build complete session object with all current data
+      const completeSession: MealSession = {
+        ...session,
+        timestamp: Date.now(),
+        bsl: currentBsl ? Number(currentBsl) : undefined,
+        sessionDate: sessionDate || undefined,
+        sessionTime: sessionTime || undefined,
+        lineItems: [...lineItems], // snapshot of current items
+        totals: { ...totals }, // snapshot of current totals
+        saved: true, // mark as saved
+      };
+
+      await saveMealSession(completeSession);
+      
+      // Clear the working state after successful save
+      // Delete all line items for this session
+      for (const item of lineItems) {
+        await deleteMealLineItem(item.id);
+      }
+      
+      // Reset line items display
+      setLineItems([]);
+      
+      // Reset form to initial state
+      setFormData(initialFormData);
+      
+      // Clear BSL
+      setCurrentBsl('');
+      
+      // Update timestamp for next meal
+      touchSessionTime();
+      
+      alert('✓ Meal session saved successfully!');
+    } catch (error) {
+      console.error('[Dashboard] Failed to save session:', error);
+      alert('Failed to save session. Please try again.');
     }
   }
 
@@ -541,8 +621,8 @@ export function Dashboard() {
               <label htmlFor="per-qty-unit">Per Qty Unit *</label>
               <select
                 id="per-qty-unit"
-                value={formData.perQuantityUnit}
-                onChange={(e) => handleFormChange('perQuantityUnit', e.target.value)}
+                value={formData.perQuantityUnit ?? 'order'}
+                onChange={(e) => handleFormChange('perQuantityUnit', e.target.value as PerQuantityUnit)}
                 aria-required="true"
               >
                 {perQuantityUnitOptions.map((opt) => (
@@ -849,6 +929,12 @@ export function Dashboard() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="session-actions">
+        <button className="btn-primary" onClick={handleSaveSession}>
+          Save Meal Session
+        </button>
       </div>
     </div>
   );

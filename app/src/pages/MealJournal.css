@@ -1,0 +1,73 @@
+/* Expandable Detail Rows */
+.details-row {
+  background: var(--color-background);
+}
+
+.details-cell {
+  padding: 0 !important;
+}
+
+.meal-items-detail {
+  background: linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) 3px, var(--color-surface-variant, #2a2a2a) 3px);
+  padding: var(--spacing-md);
+  margin: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.meal-items-detail h4 {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: var(--font-size-base);
+  color: var(--color-primary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-table-container {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.detail-table thead {
+  background: var(--color-background);
+}
+
+.detail-table th {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.detail-table td {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.detail-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.detail-table tbody tr:hover {
+  background: var(--color-background);
+}
+
+.detail-table .num-cell {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.detail-table .size-cell {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+}
+
