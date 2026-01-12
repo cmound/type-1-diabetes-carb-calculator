@@ -367,6 +367,8 @@ export async function addMealJournalEntryFromSession(
       name: item.name,
       nameLower: item.nameLower,
       source: item.source,
+      chain: item.chain,
+      foodItem: item.foodItem,
       quantity: item.quantity,
       macros: item.macros,
       notes: item.notes,

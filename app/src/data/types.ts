@@ -95,6 +95,8 @@ export interface MealLineItem {
   nameLower: string;
   source: MealSource;
   sourceId?: string; // ID of template/vendor item if applicable
+  chain?: string; // for fast food/restaurant items
+  foodItem?: string; // for fast food/restaurant items
   quantity: number; // multiplier (e.g., 2.5 servings)
   macros: MacroTotals; // snapshot for this quantity
   notes?: string;
@@ -141,6 +143,8 @@ export interface MealJournalLineItem {
   name: string;
   nameLower: string;
   source: MealSource;
+  chain?: string;
+  foodItem?: string;
   quantity: number;
   macros: MacroTotals;
   notes?: string;

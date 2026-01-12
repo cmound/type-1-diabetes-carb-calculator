@@ -9,7 +9,7 @@
  * 
  * Form adapts automatically when Meal Source changes.
  */
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createMealSession,
   getMealSessionById,
@@ -21,7 +21,14 @@ import {
   updateMealLineItem,
   deleteMealLineItem,
 } from '../data/repo';
+import {
+  findByKey as findCatalogItemByKey,
+  listFoodCatalogItems,
+  normalizeKey,
+  upsertFoodCatalogItem,
+} from '../data/foodCatalogRepo';
 import type { MealSession, MealLineItem, MealCategory, MealSource, MacroTotals } from '../data/types';
+import type { EatingOutSourceType, FoodCatalogItem } from '../types/foodCatalog';
 import { parseQuantity } from '../utils/parseQuantity';
 import { formatNutrient } from '../utils/format';
 import { RecipeBuilder } from '../components/RecipeBuilder/RecipeBuilder';
@@ -41,10 +48,13 @@ type PerQuantityUnit =
   | 'piece'
   | 'order'
   | 'basket'
+  | 'drink'
   | 'packet'
   | 'oz'
   | 'fl oz'
   | 'cup'
+  | 'g'
+  | 'mL'
   | 'serving';
 
 const perQuantityUnitOptions: PerQuantityUnit[] = [
@@ -56,12 +66,21 @@ const perQuantityUnitOptions: PerQuantityUnit[] = [
   'piece',
   'order',
   'basket',
+  'drink',
   'packet',
   'oz',
   'fl oz',
   'cup',
+  'g',
+  'mL',
   'serving',
 ];
+
+function mapMealSourceToCatalogType(source: MealSource): EatingOutSourceType | null {
+  if (source === 'Fast Food') return 'FAST_FOOD';
+  if (source === 'Restaurant') return 'RESTAURANT';
+  return null;
+}
 
 interface FoodFormData {
   name: string;
@@ -116,6 +135,8 @@ export function Dashboard() {
   const [sessionNotes, setSessionNotes] = useState<string>('');
   const [savedSessions, setSavedSessions] = useState<MealSession[]>([]);
   const [priorNotes, setPriorNotes] = useState<MealSession[]>([]);
+  const [foodCatalog, setFoodCatalog] = useState<FoodCatalogItem[]>([]);
+  const [perQuantityDirty, setPerQuantityDirty] = useState(false);
 
   function getMealSignature(items: MealLineItem[]): string {
     return items
@@ -131,6 +152,15 @@ export function Dashboard() {
       setSavedSessions(sessionsList);
     } catch (error) {
       console.error('[Dashboard] Failed to load saved sessions:', error);
+    }
+  }
+
+  async function loadFoodCatalog() {
+    try {
+      const catalog = await listFoodCatalogItems();
+      setFoodCatalog(catalog);
+    } catch (error) {
+      console.error('[Dashboard] Failed to load food catalog:', error);
     }
   }
 
@@ -189,6 +219,7 @@ export function Dashboard() {
 
     initSession();
     loadSavedSessions();
+    loadFoodCatalog();
   }, []);
 
   useEffect(() => {
@@ -213,12 +244,114 @@ export function Dashboard() {
     setPriorNotes(matches);
   }, [lineItems, savedSessions]);
 
+  const activeCatalogSource = useMemo(
+    () => (session ? mapMealSourceToCatalogType(session.primarySource) : null),
+    [session]
+  );
+
+  const chainOptions = useMemo(() => {
+    if (!activeCatalogSource) return [] as string[];
+    const seen = new Set<string>();
+    for (const item of foodCatalog) {
+      if (item.sourceType === activeCatalogSource) {
+        seen.add(item.chain);
+      }
+    }
+    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  }, [activeCatalogSource, foodCatalog]);
+
+  const foodItemOptions = useMemo(() => {
+    if (!activeCatalogSource) return [] as string[];
+    const chainNormalized = normalizeKey(formData.chain || '');
+    const seen = new Set<string>();
+    for (const item of foodCatalog) {
+      if (item.sourceType !== activeCatalogSource) continue;
+      if (chainNormalized && normalizeKey(item.chain) !== chainNormalized) continue;
+      seen.add(item.itemName);
+    }
+    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  }, [activeCatalogSource, foodCatalog, formData.chain]);
+
   async function loadLineItems(sessionId: string) {
     try {
       const items = await listMealLineItems(sessionId);
       setLineItems(items.sort((a, b) => a.order - b.order));
     } catch (error) {
       console.error('[Dashboard] Failed to load line items:', error);
+    }
+  }
+
+  function deriveBaseMacros(lineItem: MealLineItem): MacroTotals {
+    const perQuantity = parseQuantity(lineItem.perQuantityRaw ?? '1') ?? 1;
+    const multiplier = perQuantity > 0 ? lineItem.quantity / perQuantity : 1;
+    const divisor = multiplier > 0 ? multiplier : 1;
+
+    return {
+      calories: Math.round((lineItem.macros.calories / divisor) * 100) / 100,
+      fatG: Math.round((lineItem.macros.fatG / divisor) * 100) / 100,
+      sodiumMg: Math.round((lineItem.macros.sodiumMg / divisor) * 100) / 100,
+      carbsG: Math.round((lineItem.macros.carbsG / divisor) * 100) / 100,
+      fiberG: Math.round((lineItem.macros.fiberG / divisor) * 100) / 100,
+      sugarG: Math.round((lineItem.macros.sugarG / divisor) * 100) / 100,
+      proteinG: Math.round((lineItem.macros.proteinG / divisor) * 100) / 100,
+    };
+  }
+
+  async function upsertEatingOutCatalogFromSession(items: MealLineItem[]) {
+    for (const item of items) {
+      const sourceType = mapMealSourceToCatalogType(item.source);
+      if (!sourceType) continue;
+
+      let chain = (item.chain ?? '').trim();
+      let foodItem = (item.foodItem ?? '').trim();
+
+      if ((!chain || !foodItem) && item.name.includes(' - ')) {
+        const [chainPart, ...rest] = item.name.split(' - ');
+        chain = chain || chainPart.trim();
+        foodItem = foodItem || rest.join(' - ').trim();
+      }
+
+      if (!chain || !foodItem) continue;
+
+      const existing = await findCatalogItemByKey(sourceType, chain, foodItem);
+      if (existing) {
+        await upsertFoodCatalogItem({
+          id: existing.id,
+          sourceType: existing.sourceType,
+          chain: existing.chain,
+          itemName: existing.itemName,
+          basisQty: existing.basisQty,
+          basisUnit: existing.basisUnit,
+          calories: existing.calories,
+          fatG: existing.fatG,
+          sodiumMg: existing.sodiumMg,
+          carbsG: existing.carbsG,
+          fiberG: existing.fiberG,
+          sugarG: existing.sugarG,
+          proteinG: existing.proteinG,
+        });
+        continue;
+      }
+
+      const baseMacros = deriveBaseMacros(item);
+      const basisQty = parseQuantity(item.perQuantityRaw ?? '1') ?? 1;
+      const safeBasisQty = basisQty > 0 ? basisQty : 1;
+      const basisUnit = item.perType || 'order';
+
+      await upsertFoodCatalogItem({
+        sourceType,
+        chain,
+        itemName: foodItem,
+        basisQty: safeBasisQty,
+        basisUnit,
+        calories: baseMacros.calories,
+        fatG: baseMacros.fatG,
+        sodiumMg: baseMacros.sodiumMg,
+        carbsG: baseMacros.carbsG,
+        fiberG: baseMacros.fiberG,
+        sugarG: baseMacros.sugarG,
+        proteinG: baseMacros.proteinG,
+      });
     }
   }
 
@@ -241,14 +374,56 @@ export function Dashboard() {
       setFormData((prev) => ({
         ...prev,
         perQuantityUnit: isEatingOut ? (prev.perQuantityUnit ?? 'order') : undefined,
+        chain: isEatingOut ? prev.chain : '',
+        foodItem: isEatingOut ? prev.foodItem : '',
       }));
+      setPerQuantityDirty(false);
     } catch (error) {
       console.error('[Dashboard] Failed to update source:', error);
     }
   }
 
   function handleFormChange(field: keyof FoodFormData, value: string) {
+    if (field === 'perQuantityRaw') {
+      setPerQuantityDirty(true);
+    }
     setFormData({ ...formData, [field]: value });
+  }
+
+  function applyCatalogSelection(catalogItem: FoodCatalogItem) {
+    setFormData((prev) => ({
+      ...prev,
+      chain: catalogItem.chain,
+      foodItem: catalogItem.itemName,
+      perQuantityUnit: (catalogItem.basisUnit as PerQuantityUnit) || prev.perQuantityUnit,
+      perQuantityRaw: perQuantityDirty ? prev.perQuantityRaw : catalogItem.basisQty.toString(),
+      calories: catalogItem.calories.toString(),
+      fatG: catalogItem.fatG.toString(),
+      sodiumMg: catalogItem.sodiumMg.toString(),
+      carbsG: catalogItem.carbsG.toString(),
+      fiberG: catalogItem.fiberG.toString(),
+      sugarG: catalogItem.sugarG.toString(),
+      proteinG: catalogItem.proteinG.toString(),
+    }));
+  }
+
+  function handleFoodItemChange(nextValue: string) {
+    setFormData((prev) => ({ ...prev, foodItem: nextValue }));
+    const catalogSource = session ? mapMealSourceToCatalogType(session.primarySource) : null;
+    if (!catalogSource) return;
+
+    const chainNormalized = normalizeKey((formData.chain || '').trim());
+    const itemNormalized = normalizeKey(nextValue);
+    const match = foodCatalog.find((item) => {
+      if (item.sourceType !== catalogSource) return false;
+      if (normalizeKey(item.itemName) !== itemNormalized) return false;
+      if (chainNormalized) return normalizeKey(item.chain) === chainNormalized;
+      return true;
+    });
+
+    if (match) {
+      applyCatalogSelection(match);
+    }
   }
 
   function handleBslChange(value: string) {
@@ -360,6 +535,8 @@ export function Dashboard() {
         sessionId: session.id,
         name: itemName,
         source: session.primarySource,
+        chain: formData.chain.trim() || undefined,
+        foodItem: formData.foodItem.trim() || undefined,
         quantity: amountHaving,
         macros: calculatedMacros,
         order: lineItems.length + 1,
@@ -371,6 +548,7 @@ export function Dashboard() {
 
       await loadLineItems(session.id);
       setFormData(initialFormData);
+      setPerQuantityDirty(false);
       setFormError(null);
       touchSessionTime();
     } catch (error) {
@@ -461,6 +639,8 @@ export function Dashboard() {
       };
 
       await saveMealSession(completeSession);
+      await upsertEatingOutCatalogFromSession(lineItems);
+      await loadFoodCatalog();
       
       // Clear the working state after successful save
       // Delete all line items for this session
@@ -473,6 +653,7 @@ export function Dashboard() {
       
       // Reset form to initial state
       setFormData(initialFormData);
+      setPerQuantityDirty(false);
       
       // Clear BSL and notes
       setCurrentBsl('');
@@ -658,6 +839,7 @@ export function Dashboard() {
                 value={formData.chain}
                 onChange={(e) => handleFormChange('chain', e.target.value)}
                 placeholder="ex: Chick-fil-A"
+                list="chain-options"
                 aria-required="true"
               />
             </div>
@@ -668,8 +850,9 @@ export function Dashboard() {
                 type="text"
                 id="food-item"
                 value={formData.foodItem}
-                onChange={(e) => handleFormChange('foodItem', e.target.value)}
+                onChange={(e) => handleFoodItemChange(e.target.value)}
                 placeholder="ex: Nuggets"
+                list="food-item-options"
                 aria-required="true"
               />
             </div>
@@ -772,6 +955,17 @@ export function Dashboard() {
             </div>
           </div>
         )}
+
+        <datalist id="chain-options">
+          {chainOptions.map((chain) => (
+            <option key={chain} value={chain} />
+          ))}
+        </datalist>
+        <datalist id="food-item-options">
+          {foodItemOptions.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
 
         <div className="form-row">
           <div className="form-field form-field-small">

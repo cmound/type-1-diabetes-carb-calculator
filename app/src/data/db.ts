@@ -17,9 +17,16 @@ import type {
   MealJournalRecipeIngredient,
   Setting,
 } from './types';
+import type { FoodCatalogItem } from '../types/foodCatalog';
 
 const DB_NAME = 't1d-carb-calc';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
+
+export type FoodCatalogRecord = FoodCatalogItem & {
+  key: string;
+  chainNormalized: string;
+  itemNormalized: string;
+};
 
 export interface AppDBSchema {
   foodTemplates: {
@@ -80,6 +87,11 @@ export interface AppDBSchema {
   settings: {
     key: string;
     value: Setting;
+  };
+  foodCatalog: {
+    key: string;
+    value: FoodCatalogRecord;
+    indexes: { key: string; chainNormalized: string; itemNormalized: string; sourceType: string };
   };
 }
 
@@ -164,6 +176,14 @@ export async function openDb(): Promise<AppDB> {
       // Settings
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'key' });
+      }
+
+      if (!db.objectStoreNames.contains('foodCatalog')) {
+        const foodCatalogStore = db.createObjectStore('foodCatalog', { keyPath: 'id' });
+        foodCatalogStore.createIndex('key', 'key', { unique: true });
+        foodCatalogStore.createIndex('chainNormalized', 'chainNormalized');
+        foodCatalogStore.createIndex('itemNormalized', 'itemNormalized');
+        foodCatalogStore.createIndex('sourceType', 'sourceType');
       }
     },
   });
