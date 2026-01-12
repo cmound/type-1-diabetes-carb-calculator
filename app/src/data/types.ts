@@ -112,6 +112,7 @@ export interface MealSession {
   category: MealCategory;
   primarySource: MealSource;
   notes?: string;
+  createdAt?: number; // when session was saved/created
   // Additional fields for saved sessions
   bsl?: number; // blood sugar level
   sessionDate?: string; // formatted date MM/DD/YYYY

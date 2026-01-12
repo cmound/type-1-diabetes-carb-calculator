@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { listMealSessions } from '../data/repo';
+import React, { useState, useEffect } from 'react';
+import { listMealSessions, updateMealSession } from '../data/repo';
 import type { MealSession } from '../data/types';
 import { formatNutrient } from '../utils/format';
 import './MealJournal.css';
@@ -8,6 +8,7 @@ export function MealJournal() {
   const [sessions, setSessions] = useState<MealSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   async function loadSessions() {
@@ -18,6 +19,11 @@ export function MealJournal() {
       // Filter to only show saved sessions (those with lineItems)
       const savedSessions = allSessions.filter(s => s.saved && s.lineItems && s.lineItems.length > 0);
       setSessions(savedSessions);
+      const drafts: Record<string, string> = {};
+      savedSessions.forEach((s) => {
+        drafts[s.id] = s.notes ?? '';
+      });
+      setNotesDrafts(drafts);
     } catch (err) {
       console.error('[MealJournal] Failed to load sessions:', err);
       setError('Failed to load meal history');
@@ -29,6 +35,27 @@ export function MealJournal() {
   useEffect(() => {
     loadSessions();
   }, []);
+
+  function truncatedNotes(text: string, max = 60): string {
+    if (!text) return '';
+    return text.length > max ? `${text.slice(0, max)}…` : text;
+  }
+
+  const handleDraftChange = (sessionId: string, value: string) => {
+    setNotesDrafts((prev) => ({ ...prev, [sessionId]: value }));
+  };
+
+  async function handleSaveNotes(sessionId: string) {
+    const newNotes = notesDrafts[sessionId] ?? '';
+    try {
+      await updateMealSession(sessionId, { notes: newNotes });
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, notes: newNotes } : s)));
+      alert('Notes saved');
+    } catch (err) {
+      console.error('[MealJournal] Failed to save notes:', err);
+      alert('Failed to save notes');
+    }
+  }
 
   function toggleRowExpansion(sessionId: string) {
     setExpandedRows(prev => {
@@ -96,6 +123,7 @@ export function MealJournal() {
                   <th>Total Protein (g)</th>
                   <th>Total Calories</th>
                   <th>Items</th>
+                  <th>Notes</th>
                   <th>Details</th>
                 </tr>
               </thead>
@@ -106,7 +134,7 @@ export function MealJournal() {
                   const isExpanded = expandedRows.has(session.id);
                   
                   return (
-                    <>
+                    <React.Fragment key={session.id}>
                       <tr key={session.id}>
                         <td>{session.sessionDate || '-'}</td>
                         <td>{session.sessionTime || '-'}</td>
@@ -126,6 +154,7 @@ export function MealJournal() {
                           {totals ? formatNutrient(totals.calories, 'calories') : '-'}
                         </td>
                         <td className="num-cell">{itemCount}</td>
+                        <td>{truncatedNotes(session.notes ?? '')}</td>
                         <td>
                           <button
                             className="btn-small btn-edit"
@@ -137,8 +166,28 @@ export function MealJournal() {
                       </tr>
                       {isExpanded && session.lineItems && session.lineItems.length > 0 && (
                         <tr key={`${session.id}-details`} className="details-row">
-                          <td colSpan={11} className="details-cell">
+                          <td colSpan={12} className="details-cell">
                             <div className="meal-items-detail">
+                              <div className="notes-box">
+                                <label className="notes-box-label" htmlFor={`notes-${session.id}`}>
+                                  Notes
+                                </label>
+                                <textarea
+                                  id={`notes-${session.id}`}
+                                  value={notesDrafts[session.id] ?? ''}
+                                  onChange={(e) => handleDraftChange(session.id, e.target.value)}
+                                  rows={3}
+                                />
+                                <div className="notes-actions">
+                                  <button
+                                    className="btn-small btn-save"
+                                    onClick={() => handleSaveNotes(session.id)}
+                                  >
+                                    Save Notes
+                                  </button>
+                                </div>
+                              </div>
+
                               <h4>Meal Items</h4>
                               <div className="detail-table-container">
                                 <table className="detail-table">
@@ -192,7 +241,7 @@ export function MealJournal() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

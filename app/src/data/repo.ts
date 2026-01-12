@@ -207,6 +207,8 @@ export async function createMealSession(session: Omit<MealSession, 'id'>): Promi
   const fullSession: MealSession = {
     id: newId('session'),
     ...session,
+    notes: session.notes ?? '',
+    createdAt: session.createdAt ?? Date.now(),
   };
 
   await putOne('mealSessions', fullSession);
@@ -225,6 +227,8 @@ export async function updateMealSession(id: string, patch: Partial<Omit<MealSess
   const updated: MealSession = {
     ...existing,
     ...patch,
+    notes: patch.notes ?? existing.notes ?? '',
+    createdAt: existing.createdAt ?? Date.now(),
   };
   
   await putOne('mealSessions', updated);
@@ -232,14 +236,25 @@ export async function updateMealSession(id: string, patch: Partial<Omit<MealSess
 
 // Upsert a full meal session (explicit save)
 export async function saveMealSession(session: MealSession): Promise<void> {
-  await putOne('mealSessions', session);
+  const normalized: MealSession = {
+    ...session,
+    notes: session.notes ?? '',
+    createdAt: session.createdAt ?? Date.now(),
+  };
+  await putOne('mealSessions', normalized);
 }
 
 // List all saved meal sessions, sorted by timestamp (newest first)
 export async function listMealSessions(): Promise<MealSession[]> {
   const db = await openDb();
   const all = await db.getAll('mealSessions');
-  return all.sort((a, b) => b.timestamp - a.timestamp);
+  return all
+    .map((s) => ({
+      ...s,
+      notes: s.notes ?? '',
+      createdAt: s.createdAt ?? (s.timestamp || Date.now()),
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp);
 }
 
 export async function deleteMealSession(id: string): Promise<void> {

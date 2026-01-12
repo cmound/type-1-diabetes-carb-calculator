@@ -15,6 +15,7 @@ import {
   getMealSessionById,
   updateMealSession,
   saveMealSession,
+  listMealSessions,
   addMealLineItem,
   listMealLineItems,
   updateMealLineItem,
@@ -112,6 +113,26 @@ export function Dashboard() {
   const [currentBsl, setCurrentBsl] = useState<string>('');
   const [sessionDate, setSessionDate] = useState<string>('');
   const [sessionTime, setSessionTime] = useState<string>('');
+  const [sessionNotes, setSessionNotes] = useState<string>('');
+  const [savedSessions, setSavedSessions] = useState<MealSession[]>([]);
+  const [priorNotes, setPriorNotes] = useState<MealSession[]>([]);
+
+  function getMealSignature(items: MealLineItem[]): string {
+    return items
+      .map((item) => (item.name || '').trim().toLowerCase())
+      .filter(Boolean)
+      .sort()
+      .join('|');
+  }
+
+  async function loadSavedSessions() {
+    try {
+      const sessionsList = await listMealSessions();
+      setSavedSessions(sessionsList);
+    } catch (error) {
+      console.error('[Dashboard] Failed to load saved sessions:', error);
+    }
+  }
 
   // Helper to update session timestamp and date/time
   function touchSessionTime() {
@@ -167,7 +188,30 @@ export function Dashboard() {
     }
 
     initSession();
+    loadSavedSessions();
   }, []);
+
+  useEffect(() => {
+    if (session) {
+      setSessionNotes(session.notes ?? '');
+    }
+  }, [session]);
+
+  useEffect(() => {
+    const signature = getMealSignature(lineItems);
+    if (!signature) {
+      setPriorNotes([]);
+      return;
+    }
+
+    const matches = savedSessions
+      .filter((s) => (s.notes ?? '').trim() !== '' && s.lineItems && s.lineItems.length > 0)
+      .filter((s) => getMealSignature(s.lineItems!) === signature)
+      .sort((a, b) => (b.createdAt ?? b.timestamp ?? 0) - (a.createdAt ?? a.timestamp ?? 0))
+      .slice(0, 3);
+
+    setPriorNotes(matches);
+  }, [lineItems, savedSessions]);
 
   async function loadLineItems(sessionId: string) {
     try {
@@ -412,6 +456,8 @@ export function Dashboard() {
         lineItems: [...lineItems], // snapshot of current items
         totals: { ...totals }, // snapshot of current totals
         saved: true, // mark as saved
+        notes: sessionNotes ?? '',
+        createdAt: session.createdAt ?? Date.now(),
       };
 
       await saveMealSession(completeSession);
@@ -428,11 +474,15 @@ export function Dashboard() {
       // Reset form to initial state
       setFormData(initialFormData);
       
-      // Clear BSL
+      // Clear BSL and notes
       setCurrentBsl('');
+      setSessionNotes('');
       
       // Update timestamp for next meal
       touchSessionTime();
+
+      // Refresh saved sessions for prior notes panel
+      loadSavedSessions();
       
       alert('✓ Meal session saved successfully!');
     } catch (error) {
@@ -547,6 +597,26 @@ export function Dashboard() {
             <option value="Custom">Custom</option>
           </select>
         </div>
+      </div>
+
+      <div className="surface" style={{ marginBottom: '1rem' }}>
+        <h3>Prior Meal Notes (last 3)</h3>
+        {priorNotes.length === 0 ? (
+          <p className="empty-message">No prior notes for this meal yet.</p>
+        ) : (
+          <div className="notes-list">
+            {priorNotes.map((noteSession) => (
+              <div key={noteSession.id} className="note-entry">
+                <div className="note-meta">
+                  <span>{noteSession.sessionDate || '—'}</span>
+                  <span>{noteSession.sessionTime || ''}</span>
+                  <span>{noteSession.primarySource}</span>
+                </div>
+                <div className="note-text">{noteSession.notes || ''}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {isRecipeMode ? (
@@ -929,6 +999,17 @@ export function Dashboard() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="surface" style={{ marginTop: '1rem' }}>
+        <label htmlFor="post-meal-notes" className="notes-label">Post Meal Notes</label>
+        <textarea
+          id="post-meal-notes"
+          value={sessionNotes}
+          onChange={(e) => setSessionNotes(e.target.value)}
+          placeholder="Last time: 60/40 over 1 hr, spiked to 280. Next time try 50/50."
+          rows={3}
+        />
       </div>
 
       <div className="session-actions">
