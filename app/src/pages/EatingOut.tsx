@@ -172,12 +172,55 @@ function formatNumber(value: number): string {
   return Number.isFinite(value) ? (Math.round(value * 10) / 10).toString() : '0';
 }
 
+type SortField = 'sourceType' | 'chain' | 'itemName' | 'basisQty' | 'calories' | 'fatG' | 'sodiumMg' | 'carbsG' | 'fiberG' | 'sugarG' | 'proteinG';
+type SortDirection = 'asc' | 'desc';
+type ColumnWidths = Record<string, string>;
+
+const COLUMN_WIDTHS_KEY = 'eatingOutColumnWidths';
+const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
+  sourceType: '120px',
+  chain: '150px',
+  itemName: '200px',
+  basis: '100px',
+  calories: '100px',
+  fatG: '80px',
+  sodiumMg: '100px',
+  carbsG: '80px',
+  fiberG: '80px',
+  sugarG: '80px',
+  proteinG: '100px',
+  actions: '150px',
+};
+
+function loadColumnWidths(): ColumnWidths {
+  try {
+    const stored = localStorage.getItem(COLUMN_WIDTHS_KEY);
+    if (stored) {
+      return { ...DEFAULT_COLUMN_WIDTHS, ...JSON.parse(stored) };
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_COLUMN_WIDTHS;
+}
+
+function saveColumnWidths(widths: ColumnWidths) {
+  try {
+    localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(widths));
+  } catch {
+    // ignore
+  }
+}
+
 export function EatingOut() {
   const [items, setItems] = useState<FoodCatalogItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<SortField>('chain');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(loadColumnWidths());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FoodCatalogItem | null>(null);
   const [formState, setFormState] = useState<FormState>(initialFormState);
@@ -195,6 +238,35 @@ export function EatingOut() {
   const [importFileName, setImportFileName] = useState('');
 
   const sourceFilter = useMemo(() => (filter === 'ALL' ? undefined : filter), [filter]);
+
+  const sortedItems = useMemo(() => {
+    const sorted = [...items];
+    sorted.sort((a, b) => {
+      let valA: string | number;
+      let valB: string | number;
+
+      if (sortField === 'sourceType') {
+        valA = a.sourceType;
+        valB = b.sourceType;
+      } else if (sortField === 'chain') {
+        valA = a.chain.toLowerCase();
+        valB = b.chain.toLowerCase();
+      } else if (sortField === 'itemName') {
+        valA = a.itemName.toLowerCase();
+        valB = b.itemName.toLowerCase();
+      } else {
+        valA = a[sortField];
+        valB = b[sortField];
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [items, sortField, sortDirection]);
+
+  // Pointer event handlers are attached directly in handleResizeStart
 
   useEffect(() => {
     loadItems();
@@ -328,6 +400,47 @@ export function EatingOut() {
     setImporting(false);
   }
 
+  function handleResizeStart(column: string, e: React.PointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const currentWidth = columnWidths[column] || '100px';
+    const startWidth = parseInt(currentWidth, 10);
+    const startX = e.clientX;
+    const minWidth = column === 'itemName' ? 120 : 70;
+    
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+    
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const newWidth = Math.max(minWidth, Math.min(600, startWidth + delta));
+      setColumnWidths((prev) => {
+        const updated = { ...prev, [column]: `${newWidth}px` };
+        saveColumnWidths(updated);
+        return updated;
+      });
+    };
+    
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }
+
+  function handleResetColumnWidths() {
+    localStorage.removeItem(COLUMN_WIDTHS_KEY);
+    setColumnWidths(DEFAULT_COLUMN_WIDTHS);
+  }
+
   function handleMappingChange(field: keyof CsvMapping, value: string) {
     setImportMapping((prev) => ({ ...prev, [field]: value || null }));
   }
@@ -457,7 +570,7 @@ export function EatingOut() {
     }
   }
 
-  const hasResults = items.length > 0;
+  const hasResults = sortedItems.length > 0;
   const requiredMissing = requiredFields.some((field) => !importMapping[field]);
   const previewRows = parsedRows.slice(0, 3);
 
@@ -490,6 +603,38 @@ export function EatingOut() {
           />
         </div>
 
+        <div className="control-group">
+          <label htmlFor="sort-field">Sort By</label>
+          <select id="sort-field" value={sortField} onChange={(e) => setSortField(e.target.value as SortField)}>
+            <option value="chain">Chain</option>
+            <option value="itemName">Item Name</option>
+            <option value="sourceType">Source Type</option>
+            <option value="basisQty">Basis Qty</option>
+            <option value="calories">Calories</option>
+            <option value="fatG">Fat</option>
+            <option value="sodiumMg">Sodium</option>
+            <option value="carbsG">Carbs</option>
+            <option value="fiberG">Fiber</option>
+            <option value="sugarG">Sugar</option>
+            <option value="proteinG">Protein</option>
+          </select>
+        </div>
+
+        <div className="control-group">
+          <label htmlFor="sort-direction">Direction</label>
+          <select id="sort-direction" value={sortDirection} onChange={(e) => setSortDirection(e.target.value as SortDirection)}>
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div>
+
+        <div className="control-group">
+          <label>&nbsp;</label>
+          <button className="btn-secondary" onClick={handleResetColumnWidths}>
+            Reset Column Widths
+          </button>
+        </div>
+
         <div className="spacer" />
 
         <button className="btn-secondary" onClick={openImportModal}>
@@ -510,37 +655,84 @@ export function EatingOut() {
         ) : (
           <div className="table-container">
             <table className="food-table">
+              <colgroup>
+                <col style={{ width: columnWidths.sourceType }} />
+                <col style={{ width: columnWidths.chain }} />
+                <col style={{ width: columnWidths.itemName }} />
+                <col style={{ width: columnWidths.basis }} />
+                <col style={{ width: columnWidths.calories }} />
+                <col style={{ width: columnWidths.fatG }} />
+                <col style={{ width: columnWidths.sodiumMg }} />
+                <col style={{ width: columnWidths.carbsG }} />
+                <col style={{ width: columnWidths.fiberG }} />
+                <col style={{ width: columnWidths.sugarG }} />
+                <col style={{ width: columnWidths.proteinG }} />
+                <col style={{ width: columnWidths.actions }} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>Source</th>
-                  <th>Chain</th>
-                  <th>Item</th>
-                  <th>Basis</th>
-                  <th>Calories</th>
-                  <th>Fat</th>
-                  <th>Sodium</th>
-                  <th>Carbs</th>
-                  <th>Fiber</th>
-                  <th>Sugar</th>
-                  <th>Protein</th>
-                  <th>Actions</th>
+                  <th>
+                    Source
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('sourceType', e)} />
+                  </th>
+                  <th>
+                    Chain
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('chain', e)} />
+                  </th>
+                  <th className="eo-itemCol">
+                    Item
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('itemName', e)} />
+                  </th>
+                  <th>
+                    Basis
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('basis', e)} />
+                  </th>
+                  <th className="num">
+                    Calories
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('calories', e)} />
+                  </th>
+                  <th className="num">
+                    Fat
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('fatG', e)} />
+                  </th>
+                  <th className="num">
+                    Sodium
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('sodiumMg', e)} />
+                  </th>
+                  <th className="num">
+                    Carbs
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('carbsG', e)} />
+                  </th>
+                  <th className="num">
+                    Fiber
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('fiberG', e)} />
+                  </th>
+                  <th className="num">
+                    Sugar
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('sugarG', e)} />
+                  </th>
+                  <th className="num">
+                    Protein
+                    <span className="eo-resizer" onPointerDown={(e) => handleResizeStart('proteinG', e)} />
+                  </th>
+                  <th className="eo-actionsCol">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {sortedItems.map((item) => (
                   <tr key={item.id}>
                     <td>{item.sourceType === 'FAST_FOOD' ? 'Fast Food' : 'Restaurant'}</td>
                     <td>{item.chain}</td>
-                    <td>{item.itemName}</td>
+                    <td className="eo-td eo-itemCol" title={item.itemName}>{item.itemName}</td>
                     <td>{`${item.basisQty} ${item.basisUnit}`}</td>
-                    <td className="num-cell">{formatNumber(item.calories)}</td>
-                    <td className="num-cell">{formatNumber(item.fatG)}</td>
-                    <td className="num-cell">{formatNumber(item.sodiumMg)}</td>
-                    <td className="num-cell">{formatNumber(item.carbsG)}</td>
-                    <td className="num-cell">{formatNumber(item.fiberG)}</td>
-                    <td className="num-cell">{formatNumber(item.sugarG)}</td>
-                    <td className="num-cell">{formatNumber(item.proteinG)}</td>
-                    <td className="actions-cell">
+                    <td className="num">{formatNumber(item.calories)}</td>
+                    <td className="num">{formatNumber(item.fatG)}</td>
+                    <td className="num">{formatNumber(item.sodiumMg)}</td>
+                    <td className="num">{formatNumber(item.carbsG)}</td>
+                    <td className="num">{formatNumber(item.fiberG)}</td>
+                    <td className="num">{formatNumber(item.sugarG)}</td>
+                    <td className="num">{formatNumber(item.proteinG)}</td>
+                    <td className="actions-cell eo-actionsCol">
                       <button className="btn-small btn-edit" onClick={() => openEditModal(item)}>
                         Edit
                       </button>
