@@ -125,6 +125,28 @@ textarea#post-meal-notes {
   min-width: 150px;
 }
 
+.btn-reset-session {
+  margin-left: auto;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-surface-2);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-reset-session:hover {
+  background: var(--color-surface-variant, #1f1f1f);
+  border-color: var(--color-accent);
+}
+
+.btn-reset-session:active {
+  transform: translateY(1px);
+}
+
 /* Food Form - now uses .surface from globals.css */
 .food-form h3 {
   margin-top: 0;

@@ -435,6 +435,55 @@ export function Dashboard() {
     }
   }
 
+  async function handleResetSession() {
+    if (!session) return;
+
+    const confirmed = window.confirm(
+      'Reset this session to Breakfast and Home Meal, and clear the current form and logged items?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Update session in DB
+      await updateMealSession(session.id, {
+        category: 'Breakfast',
+        primarySource: 'Home Meal',
+      });
+
+      // Update local session state
+      setSession({ ...session, category: 'Breakfast', primarySource: 'Home Meal' });
+
+      // Delete all line items for this session
+      const items = await listMealLineItems(session.id);
+      for (const item of items) {
+        await deleteMealLineItem(item.id);
+      }
+
+      // Clear line items state
+      setLineItems([]);
+
+      // Reset form data
+      setFormData(initialFormData);
+
+      // Reset UI state
+      setPerQuantityDirty(false);
+      setCatalogSearch('');
+      setCatalogChainFilter('');
+      setSaveToCatalog(true);
+      setCurrentBsl('');
+      setSessionNotes('');
+      setSessionDate('');
+      setSessionTime('');
+      setEditingId(null);
+      setEditQuantity('');
+      setFormError(null);
+    } catch (error) {
+      console.error('[Dashboard] Failed to reset session:', error);
+      alert('Failed to reset session. Please try again.');
+    }
+  }
+
   function handleFormChange(field: keyof FoodFormData, value: string) {
     if (field === 'perQuantityRaw') {
       setPerQuantityDirty(true);
@@ -874,6 +923,15 @@ export function Dashboard() {
             <option value="Custom">Custom</option>
           </select>
         </div>
+
+        <button
+          type="button"
+          className="btn-reset-session"
+          onClick={handleResetSession}
+          title="Reset session to Breakfast and Home Meal, clearing all items"
+        >
+          Reset session to defaults
+        </button>
       </div>
 
       <div className="surface" style={{ marginBottom: '1rem' }}>
