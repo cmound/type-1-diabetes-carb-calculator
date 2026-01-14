@@ -82,6 +82,12 @@ function mapMealSourceToCatalogType(source: MealSource): EatingOutSourceType | n
   return null;
 }
 
+function isPhysicalBasisUnit(unit: string | undefined): boolean {
+  if (!unit) return false;
+  const physical = ['g', 'ml', 'mL', 'oz', 'fl oz', 'cup', 'tbsp', 'tsp'];
+  return physical.includes(unit);
+}
+
 interface FoodFormData {
   name: string;
   chain: string; // For Fast Food and Restaurant
@@ -109,6 +115,7 @@ const initialFormData: FoodFormData = {
   servingSizeUnit: 'g',
   perQuantityRaw: '1',
   perUnit: 'serving',
+  perQuantityUnit: 'order',
   calories: '0',
   fatG: '0',
   sodiumMg: '0',
@@ -137,6 +144,9 @@ export function Dashboard() {
   const [priorNotes, setPriorNotes] = useState<MealSession[]>([]);
   const [foodCatalog, setFoodCatalog] = useState<FoodCatalogItem[]>([]);
   const [perQuantityDirty, setPerQuantityDirty] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogChainFilter, setCatalogChainFilter] = useState('');
+  const [saveToCatalog, setSaveToCatalog] = useState(true);
 
   function getMealSignature(items: MealLineItem[]): string {
     return items
@@ -202,7 +212,7 @@ export function Dashboard() {
           // Create new session
           activeSession = await createMealSession({
             timestamp: Date.now(),
-            category: 'Dinner',
+            category: 'Breakfast',
             primarySource: 'Home Meal',
           });
           localStorage.setItem(ACTIVE_SESSION_KEY, activeSession.id);
@@ -249,6 +259,13 @@ export function Dashboard() {
     [session]
   );
 
+  useEffect(() => {
+    // Refresh catalog when the relevant source changes so picker stays in sync
+    if (activeCatalogSource) {
+      loadFoodCatalog();
+    }
+  }, [activeCatalogSource]);
+
   const chainOptions = useMemo(() => {
     if (!activeCatalogSource) return [] as string[];
     const seen = new Set<string>();
@@ -272,6 +289,23 @@ export function Dashboard() {
     return Array.from(seen).sort((a, b) => a.localeCompare(b));
   }, [activeCatalogSource, foodCatalog, formData.chain]);
 
+  const filteredCatalogItems = useMemo(() => {
+    if (!activeCatalogSource) return [] as FoodCatalogItem[];
+    const query = catalogSearch.trim();
+    const queryNorm = query ? normalizeKey(query) : '';
+    const chainNorm = catalogChainFilter ? normalizeKey(catalogChainFilter) : '';
+
+    return foodCatalog
+      .filter((item) => item.sourceType === activeCatalogSource)
+      .filter((item) => (chainNorm ? normalizeKey(item.chain) === chainNorm : true))
+      .filter((item) =>
+        queryNorm
+          ? normalizeKey(item.chain).includes(queryNorm) || normalizeKey(item.itemName).includes(queryNorm)
+          : true
+      )
+      .slice(0, 12);
+  }, [activeCatalogSource, catalogChainFilter, catalogSearch, foodCatalog]);
+
   async function loadLineItems(sessionId: string) {
     try {
       const items = await listMealLineItems(sessionId);
@@ -282,6 +316,24 @@ export function Dashboard() {
   }
 
   function deriveBaseMacros(lineItem: MealLineItem): MacroTotals {
+    const isFastFoodOrRestaurant = lineItem.source === 'Fast Food' || lineItem.source === 'Restaurant';
+    const isPhysical = isPhysicalBasisUnit(lineItem.perType);
+    
+    // For Fast Food/Restaurant with physical units, base macros are per serving (quantity)
+    // For others, derive base macros using perQuantityRaw
+    if (isFastFoodOrRestaurant && isPhysical) {
+      const divisor = lineItem.quantity > 0 ? lineItem.quantity : 1;
+      return {
+        calories: Math.round((lineItem.macros.calories / divisor) * 100) / 100,
+        fatG: Math.round((lineItem.macros.fatG / divisor) * 100) / 100,
+        sodiumMg: Math.round((lineItem.macros.sodiumMg / divisor) * 100) / 100,
+        carbsG: Math.round((lineItem.macros.carbsG / divisor) * 100) / 100,
+        fiberG: Math.round((lineItem.macros.fiberG / divisor) * 100) / 100,
+        sugarG: Math.round((lineItem.macros.sugarG / divisor) * 100) / 100,
+        proteinG: Math.round((lineItem.macros.proteinG / divisor) * 100) / 100,
+      };
+    }
+    
     const perQuantity = parseQuantity(lineItem.perQuantityRaw ?? '1') ?? 1;
     const multiplier = perQuantity > 0 ? lineItem.quantity / perQuantity : 1;
     const divisor = multiplier > 0 ? multiplier : 1;
@@ -426,6 +478,25 @@ export function Dashboard() {
     }
   }
 
+  function handleCatalogPick(item: FoodCatalogItem) {
+    setPerQuantityDirty(false);
+    setFormData((prev) => ({
+      ...prev,
+      chain: item.chain,
+      foodItem: item.itemName,
+      perQuantityUnit: (item.basisUnit as PerQuantityUnit) || prev.perQuantityUnit || 'order',
+      perQuantityRaw: item.basisQty ? item.basisQty.toString() : '1',
+      calories: item.calories.toString(),
+      fatG: item.fatG.toString(),
+      sodiumMg: item.sodiumMg.toString(),
+      carbsG: item.carbsG.toString(),
+      fiberG: item.fiberG.toString(),
+      sugarG: item.sugarG.toString(),
+      proteinG: item.proteinG.toString(),
+      amountHaving: '1',
+    }));
+  }
+
   function handleBslChange(value: string) {
     if (currentBsl === '' && value !== '') {
       touchSessionTime();
@@ -495,9 +566,10 @@ export function Dashboard() {
     };
 
     // Calculate macros for the amount having
-    // Base macros are per "perQuantity" servings
-    // Total = (baseMacros / perQuantity) * amountHaving
-    const multiplier = amountHaving / perQuantity;
+    // For Fast Food/Restaurant with physical units (g, mL, oz, etc.), Amount Having = number of servings
+    // For other units (burger, order, etc.), use the perQuantity division
+    const isPhysical = isFastFoodOrRestaurant && isPhysicalBasisUnit(formData.perQuantityUnit);
+    const multiplier = isPhysical ? amountHaving : (amountHaving / perQuantity);
     const calculatedMacros: MacroTotals = {
       calories: Math.round(baseMacros.calories * multiplier * 100) / 100,
       fatG: Math.round(baseMacros.fatG * multiplier * 100) / 100,
@@ -545,6 +617,29 @@ export function Dashboard() {
         perQuantityRaw: formData.perQuantityRaw,
         perType,
       });
+
+      // Optionally persist manual entry into the Eating Out library
+      if (isFastFoodOrRestaurant && saveToCatalog) {
+        const catalogType = mapMealSourceToCatalogType(source);
+        const safeBasisQty = perQuantity > 0 ? perQuantity : 1;
+        if (catalogType) {
+          await upsertFoodCatalogItem({
+            sourceType: catalogType,
+            chain: formData.chain.trim(),
+            itemName: formData.foodItem.trim(),
+            basisQty: safeBasisQty,
+            basisUnit: formData.perQuantityUnit || 'order',
+            calories: baseMacros.calories,
+            fatG: baseMacros.fatG,
+            sodiumMg: baseMacros.sodiumMg,
+            carbsG: baseMacros.carbsG,
+            fiberG: baseMacros.fiberG,
+            sugarG: baseMacros.sugarG,
+            proteinG: baseMacros.proteinG,
+          });
+          loadFoodCatalog();
+        }
+      }
 
       await loadLineItems(session.id);
       setFormData(initialFormData);
@@ -705,6 +800,7 @@ export function Dashboard() {
   }
 
   const isRecipeMode = session.primarySource === 'Recipe';
+  const isEatingOut = session.primarySource === 'Fast Food' || session.primarySource === 'Restaurant';
 
   return (
     <div className="dashboard">
@@ -828,7 +924,7 @@ export function Dashboard() {
         {formError && <div className="form-error">{formError}</div>}
 
         {/* Conditional form rendering based on Meal Source */}
-        {session.primarySource === 'Fast Food' || session.primarySource === 'Restaurant' ? (
+        {isEatingOut ? (
           // Fast Food / Restaurant: Chain, Food Item, Per Quantity, Per Qty Unit (NO Serving Size)
           <div className="form-row food-top-row food-top-row-fastfood">
             <div className="form-field">
@@ -956,6 +1052,72 @@ export function Dashboard() {
           </div>
         )}
 
+        {isEatingOut && (
+          <div className="eo-picker">
+            <div className="eo-picker-header">Pick from Eating Out Library</div>
+            <div className="eo-picker-controls">
+              <div className="form-field">
+                <label htmlFor="eo-chain-filter">Chain Filter</label>
+                <select
+                  id="eo-chain-filter"
+                  value={catalogChainFilter}
+                  onChange={(e) => setCatalogChainFilter(e.target.value)}
+                >
+                  <option value="">All Chains</option>
+                  {chainOptions.map((chain) => (
+                    <option key={chain} value={chain}>
+                      {chain}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field">
+                <label htmlFor="eo-search">Search (chain or item)</label>
+                <input
+                  id="eo-search"
+                  type="search"
+                  value={catalogSearch}
+                  onChange={(e) => setCatalogSearch(e.target.value)}
+                  placeholder="e.g., burrito or Chipotle"
+                />
+              </div>
+            </div>
+
+            {filteredCatalogItems.length > 0 ? (
+              <div className="eo-picker-results" role="list">
+                {filteredCatalogItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="eo-picker-row"
+                    onClick={() => handleCatalogPick(item)}
+                    role="listitem"
+                  >
+                    <div className="eo-row-main">
+                      <span className="eo-chain">{item.chain}</span>
+                      <span className="eo-separator">•</span>
+                      <span className="eo-item">{item.itemName}</span>
+                    </div>
+                    <div className="eo-row-sub">
+                      <span>
+                        Basis: {item.basisQty} {item.basisUnit}
+                      </span>
+                      <span className="eo-dot">•</span>
+                      <span>Carbs {item.carbsG}g</span>
+                      <span className="eo-dot">•</span>
+                      <span>Calories {item.calories}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-message" style={{ margin: '0.25rem 0 0' }}>
+                No matches in library.
+              </p>
+            )}
+          </div>
+        )}
+
         <datalist id="chain-options">
           {chainOptions.map((chain) => (
             <option key={chain} value={chain} />
@@ -1066,6 +1228,19 @@ export function Dashboard() {
               aria-required="true"
             />
           </div>
+
+          {isEatingOut && (
+            <div className="form-field form-field-small" style={{ alignSelf: 'flex-end' }}>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={saveToCatalog}
+                  onChange={(e) => setSaveToCatalog(e.target.checked)}
+                />
+                Save manual entry to Eating Out Library
+              </label>
+            </div>
+          )}
 
           <div className="form-actions">
             <button type="button" className="btn-primary" onClick={handleAddFood}>
