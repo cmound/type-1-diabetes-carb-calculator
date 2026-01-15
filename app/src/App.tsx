@@ -9,7 +9,7 @@ import { Settings } from './pages/Settings';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}> {/* Set basename for GitHub Pages */}
       <AppLayout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -18,6 +18,7 @@ function App() {
           <Route path="/journal" element={<MealJournal />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Dashboard />} /> {/* Catch-all route */}
         </Routes>
       </AppLayout>
     </BrowserRouter>

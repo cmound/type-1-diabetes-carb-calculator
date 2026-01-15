@@ -147,6 +147,7 @@ export function Dashboard() {
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogChainFilter, setCatalogChainFilter] = useState('');
   const [saveToCatalog, setSaveToCatalog] = useState(true);
+  const [lastPickedCatalogId, setLastPickedCatalogId] = useState<string | null>(null);
 
   function getMealSignature(items: MealLineItem[]): string {
     return items
@@ -471,6 +472,7 @@ export function Dashboard() {
       setCatalogSearch('');
       setCatalogChainFilter('');
       setSaveToCatalog(true);
+      setLastPickedCatalogId(null);
       setCurrentBsl('');
       setSessionNotes('');
       setSessionDate('');
@@ -487,6 +489,11 @@ export function Dashboard() {
   function handleFormChange(field: keyof FoodFormData, value: string) {
     if (field === 'perQuantityRaw') {
       setPerQuantityDirty(true);
+    }
+    // Clear picked catalog ID when user manually edits chain, foodItem, or macros
+    if (field === 'chain' || field === 'foodItem' || field === 'calories' || field === 'fatG' || 
+        field === 'sodiumMg' || field === 'carbsG' || field === 'fiberG' || field === 'sugarG' || field === 'proteinG') {
+      setLastPickedCatalogId(null);
     }
     setFormData({ ...formData, [field]: value });
   }
@@ -529,6 +536,7 @@ export function Dashboard() {
 
   function handleCatalogPick(item: FoodCatalogItem) {
     setPerQuantityDirty(false);
+    setLastPickedCatalogId(item.id || null);
     setFormData((prev) => ({
       ...prev,
       chain: item.chain,
@@ -668,7 +676,9 @@ export function Dashboard() {
       });
 
       // Optionally persist manual entry into the Eating Out library
-      if (isFastFoodOrRestaurant && saveToCatalog) {
+      // Only upsert if this is a manual entry (lastPickedCatalogId is null)
+      // This prevents duplicate upserts when adding picked items
+      if (isFastFoodOrRestaurant && saveToCatalog && lastPickedCatalogId === null) {
         const catalogType = mapMealSourceToCatalogType(source);
         const safeBasisQty = perQuantity > 0 ? perQuantity : 1;
         if (catalogType) {
@@ -693,6 +703,7 @@ export function Dashboard() {
       await loadLineItems(session.id);
       setFormData(initialFormData);
       setPerQuantityDirty(false);
+      setLastPickedCatalogId(null);
       setFormError(null);
       touchSessionTime();
     } catch (error) {
