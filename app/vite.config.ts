@@ -19,22 +19,22 @@ export default defineConfig({
         theme_color: '#000000',
         icons: [
           {
-            src: '/icons/T1D-Icon-192.png',
+            src: 'icons/T1D-Icon-192.png', // Removed leading slash for relative path
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/icons/T1D-Icon-256.png',
+            src: 'icons/T1D-Icon-256.png', // Removed leading slash for relative path
             sizes: '256x256',
             type: 'image/png',
           },
           {
-            src: '/icons/T1D-Icon-512.png',
+            src: 'icons/T1D-Icon-512.png', // Removed leading slash for relative path
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/icons/T1D-Icon-1024.png',
+            src: 'icons/T1D-Icon-1024.png', // Removed leading slash for relative path
             sizes: '1024x1024',
             type: 'image/png',
             purpose: 'any',
