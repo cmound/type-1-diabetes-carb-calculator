@@ -38,19 +38,19 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Build
+- name: Build
         run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -f dist/index.html
+          test -d dist/assets
 
       # Vite output is app/dist
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist
-
-      - name: Verify build output
-        run: |
-          test -f dist/index.html
-          test -d dist/assets
 
   deploy:
     runs-on: ubuntu-latest
