@@ -9,7 +9,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const navItems = [
     { path: '/', label: 'Dashboard' },
-    { path: '/eating-out', label: 'Eating Out' },
+    { path: '/eating-out', label: 'Fast Food / Restaurants' },
     { path: '/templates', label: 'Templates' },
     { path: '/journal', label: 'Meal Journal' },
     { path: '/analytics', label: 'Analytics' },

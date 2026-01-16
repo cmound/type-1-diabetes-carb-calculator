@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { listMealSessions, updateMealSession } from '../data/repo';
-import type { MealSession } from '../data/types';
-import { formatNutrient } from '../utils/format';
+import { storage } from '../storage';
 import './MealJournal.css';
+import type { MealEntry } from '../types/meal';
 
 export function MealJournal() {
-  const [sessions, setSessions] = useState<MealSession[]>([]);
+  const [sessions, setSessions] = useState<MealEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
@@ -15,15 +14,8 @@ export function MealJournal() {
     setLoading(true);
     setError(null);
     try {
-      const allSessions = await listMealSessions();
-      // Filter to only show saved sessions (those with lineItems)
-      const savedSessions = allSessions.filter(s => s.saved && s.lineItems && s.lineItems.length > 0);
-      setSessions(savedSessions);
-      const drafts: Record<string, string> = {};
-      savedSessions.forEach((s) => {
-        drafts[s.id] = s.notes ?? '';
-      });
-      setNotesDrafts(drafts);
+      const allSessions = await storage.listMealEntries();
+      setSessions(allSessions);
     } catch (err) {
       console.error('[MealJournal] Failed to load sessions:', err);
       setError('Failed to load meal history');
@@ -46,19 +38,26 @@ export function MealJournal() {
   };
 
   async function handleSaveNotes(sessionId: string) {
-    const newNotes = notesDrafts[sessionId] ?? '';
-    try {
-      await updateMealSession(sessionId, { notes: newNotes });
-      setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, notes: newNotes } : s)));
-      alert('Notes saved');
-    } catch (err) {
-      console.error('[MealJournal] Failed to save notes:', err);
-      alert('Failed to save notes');
-    }
+    const newNotes = notesDrafts[sessionId];
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+
+    const updatedSession = {
+      ...session,
+      notes: newNotes,
+    };
+
+    await storage.updateMealEntry(updatedSession);
+    setSessions((prev) => prev.map((s) => (s.id === sessionId ? updatedSession : s)));
+  }
+
+  async function handleDeleteMealEntry(sessionId: string) {
+    await storage.deleteMealEntry(sessionId);
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }
 
   function toggleRowExpansion(sessionId: string) {
-    setExpandedRows(prev => {
+    setExpandedRows((prev) => {
       const next = new Set(prev);
       if (next.has(sessionId)) {
         next.delete(sessionId);
@@ -93,7 +92,7 @@ export function MealJournal() {
   return (
     <div>
       <h2>Meal Journal</h2>
-      
+
       <div className="surface" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p>Your saved meal history</p>
@@ -125,6 +124,7 @@ export function MealJournal() {
                   <th>Items</th>
                   <th>Notes</th>
                   <th>Details</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -132,7 +132,7 @@ export function MealJournal() {
                   const itemCount = session.lineItems?.length || 0;
                   const totals = session.totals;
                   const isExpanded = expandedRows.has(session.id);
-                  
+
                   return (
                     <React.Fragment key={session.id}>
                       <tr key={session.id}>
@@ -141,18 +141,10 @@ export function MealJournal() {
                         <td>{session.category}</td>
                         <td>{session.primarySource}</td>
                         <td className="num-cell">{session.bsl ?? '-'}</td>
-                        <td className="num-cell">
-                          {totals ? formatNutrient(totals.carbsG, 'carbs') : '-'}
-                        </td>
-                        <td className="num-cell">
-                          {totals ? formatNutrient(totals.fatG, 'fat') : '-'}
-                        </td>
-                        <td className="num-cell">
-                          {totals ? formatNutrient(totals.proteinG, 'protein') : '-'}
-                        </td>
-                        <td className="num-cell">
-                          {totals ? formatNutrient(totals.calories, 'calories') : '-'}
-                        </td>
+                        <td className="num-cell">{totals ? totals.carbsG : '-'}</td>
+                        <td className="num-cell">{totals ? totals.fatG : '-'}</td>
+                        <td className="num-cell">{totals ? totals.proteinG : '-'}</td>
+                        <td className="num-cell">{totals ? totals.calories : '-'}</td>
                         <td className="num-cell">{itemCount}</td>
                         <td>{truncatedNotes(session.notes ?? '')}</td>
                         <td>
@@ -163,10 +155,24 @@ export function MealJournal() {
                             {isExpanded ? 'Hide items' : 'Show items'}
                           </button>
                         </td>
+                        <td>
+                          <button
+                            className="btn-small btn-edit"
+                            onClick={() => alert('Edit functionality not implemented yet')}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn-small btn-delete"
+                            onClick={() => handleDeleteMealEntry(session.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                       {isExpanded && session.lineItems && session.lineItems.length > 0 && (
                         <tr key={`${session.id}-details`} className="details-row">
-                          <td colSpan={12} className="details-cell">
+                          <td colSpan={13} className="details-cell">
                             <div className="meal-items-detail">
                               <div className="notes-box">
                                 <label className="notes-box-label" htmlFor={`notes-${session.id}`}>
@@ -207,30 +213,29 @@ export function MealJournal() {
                                   </thead>
                                   <tbody>
                                     {session.lineItems.map((item) => {
-                                      // Determine display format based on source
                                       let sizeDisplay: string;
                                       if (item.source === 'Fast Food' || item.source === 'Restaurant') {
                                         const qty = item.perQuantityRaw || '1';
                                         const unit = item.perType || 'order';
                                         sizeDisplay = `${qty} ${unit}`;
                                       } else {
-                                        sizeDisplay = item.servingSize 
-                                          ? `${item.servingSize} (per ${item.perQuantityRaw || '1'} ${item.perType || 'serving'})` 
-                                          : (item.notes || '-');
+                                        sizeDisplay = item.servingSize
+                                          ? `${item.servingSize} (per ${item.perQuantityRaw || '1'} ${item.perType || 'serving'})`
+                                          : item.notes || '-';
                                       }
-                                      
+
                                       return (
                                         <tr key={item.id}>
                                           <td>{item.name}</td>
                                           <td className="size-cell">{sizeDisplay}</td>
                                           <td className="num-cell">{item.quantity.toFixed(2)}</td>
-                                          <td className="num-cell">{formatNutrient(item.macros.carbsG, 'carbs')}</td>
-                                          <td className="num-cell">{formatNutrient(item.macros.fatG, 'fat')}</td>
-                                          <td className="num-cell">{formatNutrient(item.macros.proteinG, 'protein')}</td>
-                                          <td className="num-cell">{formatNutrient(item.macros.calories, 'calories')}</td>
-                                          <td className="num-cell">{formatNutrient(item.macros.sodiumMg, 'sodium')}</td>
-                                          <td className="num-cell">{formatNutrient(item.macros.fiberG, 'fiber')}</td>
-                                          <td className="num-cell">{formatNutrient(item.macros.sugarG, 'sugar')}</td>
+                                          <td className="num-cell">{item.macros.carbsG}</td>
+                                          <td className="num-cell">{item.macros.fatG}</td>
+                                          <td className="num-cell">{item.macros.proteinG}</td>
+                                          <td className="num-cell">{item.macros.calories}</td>
+                                          <td className="num-cell">{item.macros.sodiumMg}</td>
+                                          <td className="num-cell">{item.macros.fiberG}</td>
+                                          <td className="num-cell">{item.macros.sugarG}</td>
                                         </tr>
                                       );
                                     })}

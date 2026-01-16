@@ -134,6 +134,7 @@ export function Dashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [showCatalogPicker, setShowCatalogPicker] = useState(false);
 
   // Meal Session Header state
   const [currentBsl, setCurrentBsl] = useState<string>('');
@@ -675,7 +676,7 @@ export function Dashboard() {
         perType,
       });
 
-      // Optionally persist manual entry into the Eating Out library
+      // Optionally persist manual entry into the Fast Food / Restaurants library
       // Only upsert if this is a manual entry (lastPickedCatalogId is null)
       // This prevents duplicate upserts when adding picked items
       if (isFastFoodOrRestaurant && saveToCatalog && lastPickedCatalogId === null) {
@@ -1122,68 +1123,15 @@ export function Dashboard() {
         )}
 
         {isEatingOut && (
-          <div className="eo-picker">
-            <div className="eo-picker-header">Pick from Eating Out Library</div>
-            <div className="eo-picker-controls">
-              <div className="form-field">
-                <label htmlFor="eo-chain-filter">Chain Filter</label>
-                <select
-                  id="eo-chain-filter"
-                  value={catalogChainFilter}
-                  onChange={(e) => setCatalogChainFilter(e.target.value)}
-                >
-                  <option value="">All Chains</option>
-                  {chainOptions.map((chain) => (
-                    <option key={chain} value={chain}>
-                      {chain}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-field">
-                <label htmlFor="eo-search">Search (chain or item)</label>
-                <input
-                  id="eo-search"
-                  type="search"
-                  value={catalogSearch}
-                  onChange={(e) => setCatalogSearch(e.target.value)}
-                  placeholder="e.g., burrito or Chipotle"
-                />
-              </div>
-            </div>
-
-            {filteredCatalogItems.length > 0 ? (
-              <div className="eo-picker-results" role="list">
-                {filteredCatalogItems.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="eo-picker-row"
-                    onClick={() => handleCatalogPick(item)}
-                    role="listitem"
-                  >
-                    <div className="eo-row-main">
-                      <span className="eo-chain">{item.chain}</span>
-                      <span className="eo-separator">•</span>
-                      <span className="eo-item">{item.itemName}</span>
-                    </div>
-                    <div className="eo-row-sub">
-                      <span>
-                        Basis: {item.basisQty} {item.basisUnit}
-                      </span>
-                      <span className="eo-dot">•</span>
-                      <span>Carbs {item.carbsG}g</span>
-                      <span className="eo-dot">•</span>
-                      <span>Calories {item.calories}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="empty-message" style={{ margin: '0.25rem 0 0' }}>
-                No matches in library.
-              </p>
-            )}
+          <div className="form-field form-field-small" style={{ alignSelf: 'flex-end' }}>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={saveToCatalog}
+                onChange={(e) => setSaveToCatalog(e.target.checked)}
+              />
+              Save manual entry to Fast Food / Restaurants Library
+            </label>
           </div>
         )}
 
@@ -1306,7 +1254,7 @@ export function Dashboard() {
                   checked={saveToCatalog}
                   onChange={(e) => setSaveToCatalog(e.target.checked)}
                 />
-                Save manual entry to Eating Out Library
+                Save manual entry to Fast Food / Restaurants Library
               </label>
             </div>
           )}
@@ -1318,6 +1266,38 @@ export function Dashboard() {
           </div>
         </div>
       </form>
+      )}
+
+      {showCatalogPicker && (
+        <div className="catalog-picker">
+          <div className="picker-header">
+            <h3>Pick from Fast Food / Restaurants library</h3>
+            <button onClick={() => setShowCatalogPicker(false)}>×</button>
+          </div>
+          <input
+            type="text"
+            placeholder="Search items..."
+            value={catalogSearch}
+            onChange={(e) => setCatalogSearch(e.target.value)}
+          />
+          <div className="picker-list">
+            {filteredCatalogItems.map((item) => (
+              <div
+                key={item.id}
+                className="picker-item"
+                onClick={() => handleCatalogPick(item)}
+              >
+                <div className="item-name">{item.itemName}</div>
+                <div className="item-details">
+                  {item.chain} • {item.basisQty} {item.basisUnit}
+                </div>
+              </div>
+            ))}
+            {filteredCatalogItems.length === 0 && (
+              <div className="no-results">No matching items found</div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="meal-log surface">

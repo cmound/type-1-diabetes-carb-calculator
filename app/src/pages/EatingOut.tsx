@@ -1,13 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Papa from 'papaparse';
-import {
-  deleteFoodCatalogItem,
-  listFoodCatalogItems,
-  searchFoodCatalogItems,
-  upsertFoodCatalogItem,
-  upsertFoodCatalogItems,
-} from '../data/foodCatalogRepo';
-import type { EatingOutSourceType, FoodCatalogItem } from '../types/foodCatalog';
+import { upsertFoodCatalogItems } from '../data/foodCatalogRepo';
+import { storage } from '../storage';
+import type { FoodCatalogItem, EatingOutSourceType } from '../types/foodCatalog';
 import './EatingOut.css';
 
 const basisUnitOptions = [
@@ -237,8 +232,6 @@ export function EatingOut() {
   const [importing, setImporting] = useState(false);
   const [importFileName, setImportFileName] = useState('');
 
-  const sourceFilter = useMemo(() => (filter === 'ALL' ? undefined : filter), [filter]);
-
   const sortedItems = useMemo(() => {
     const sorted = [...items];
     sorted.sort((a, b) => {
@@ -266,29 +259,18 @@ export function EatingOut() {
     return sorted;
   }, [items, sortField, sortDirection]);
 
-  // Pointer event handlers are attached directly in handleResizeStart
-
   useEffect(() => {
     loadItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, searchTerm]);
 
   async function loadItems() {
     setLoading(true);
     setError(null);
     try {
-      if (sourceFilter || searchTerm.trim()) {
-        const results = await searchFoodCatalogItems({
-          sourceType: sourceFilter,
-          query: searchTerm.trim(),
-        });
-        setItems(results);
-      } else {
-        const results = await listFoodCatalogItems();
-        setItems(results);
-      }
+      const results = await storage.listEatingOutItems();
+      setItems(results as FoodCatalogItem[]);
     } catch (err) {
-      console.error('[EatingOut] Failed to load catalog', err);
+      console.error('[EatingOut] Failed to load items', err);
       setError('Failed to load items');
     } finally {
       setLoading(false);
@@ -342,8 +324,18 @@ export function EatingOut() {
       return;
     }
 
-    const payload: Omit<FoodCatalogItem, 'id' | 'createdAt' | 'updatedAt'> & { id?: string } = {
-      id: editingItem?.id,
+    const now = Date.now();
+    const parsed = typeof editingItem?.createdAt === 'string' ? Date.parse(editingItem.createdAt) : NaN;
+    const createdAt =
+      typeof editingItem?.createdAt === 'number'
+        ? editingItem.createdAt
+        : Number.isFinite(parsed)
+          ? parsed
+          : now;
+    const updatedAt = now;
+
+    const payload: FoodCatalogItem = {
+      id: editingItem?.id || crypto.randomUUID(),
       sourceType: formState.sourceType,
       chain,
       itemName,
@@ -356,11 +348,13 @@ export function EatingOut() {
       fiberG: Number(formState.fiberG) || 0,
       sugarG: Number(formState.sugarG) || 0,
       proteinG: Number(formState.proteinG) || 0,
+      createdAt,
+      updatedAt,
     };
 
     try {
       setSaving(true);
-      await upsertFoodCatalogItem(payload);
+      await storage.updateEatingOutItem(payload);
       await loadItems();
       closeModal();
     } catch (err) {
@@ -375,7 +369,7 @@ export function EatingOut() {
     if (!confirm('Delete this item?')) return;
     try {
       setDeletingId(id);
-      await deleteFoodCatalogItem(id);
+      await storage.deleteEatingOutItem(id);
       await loadItems();
     } catch (err) {
       console.error('[EatingOut] Failed to delete item', err);
@@ -576,7 +570,7 @@ export function EatingOut() {
 
   return (
     <div className="eating-out-page">
-      <h2>Eating Out Library</h2>
+      <h2>Fast Food / Restaurants Library</h2>
 
       <div className="toolbarRow">
         <div className="control-group">
