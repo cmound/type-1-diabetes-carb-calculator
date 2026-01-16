@@ -47,6 +47,11 @@ jobs:
         with:
           path: app/dist
 
+      - name: Verify build output
+        run: |
+          test -f app/dist/index.html
+          test -d app/dist/assets
+
   deploy:
     runs-on: ubuntu-latest
     needs: build
@@ -60,7 +65,3 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact: "github-pages"
-      - name: Verify build output
-        run: |
-          test -f app/dist/index.html
-          test -d app/dist/assets
