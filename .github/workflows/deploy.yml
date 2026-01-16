@@ -49,8 +49,8 @@ jobs:
 
       - name: Verify build output
         run: |
-          test -f app/dist/index.html
-          test -d app/dist/assets
+          test -f dist/index.html
+          test -d dist/assets
 
   deploy:
     runs-on: ubuntu-latest
