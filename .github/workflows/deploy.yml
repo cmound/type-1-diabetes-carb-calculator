@@ -38,7 +38,7 @@ jobs:
       - name: Lint
         run: npm run lint
 
-- name: Build
+      - name: Build
         run: npm run build
 
       - name: Verify build output
@@ -46,7 +46,6 @@ jobs:
           test -f dist/index.html
           test -d dist/assets
 
-      # Vite output is app/dist
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -64,4 +63,5 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact: "github-pages"
+          artifact: github-pages
+
