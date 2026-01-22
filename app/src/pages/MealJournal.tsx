@@ -26,6 +26,18 @@ export function MealJournal() {
 
   useEffect(() => {
     loadSessions();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSessions();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   function truncatedNotes(text: string, max = 60): string {
@@ -68,6 +80,18 @@ export function MealJournal() {
     });
   }
 
+  function renderNotesColumn(session: MealEntry) {
+    return (
+      <td>
+        {session.notes ? (
+          <span title={session.notes}>{truncatedNotes(session.notes)}</span>
+        ) : (
+          <em>No notes</em>
+        )}
+      </td>
+    );
+  }
+
   if (loading) {
     return (
       <div>
@@ -108,149 +132,151 @@ export function MealJournal() {
         </div>
       ) : (
         <div className="surface">
-          <div className="table-container">
-            <table className="food-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Meal Category</th>
-                  <th>Meal Source</th>
-                  <th>BSL (mg/dL)</th>
-                  <th>Total Carbs (g)</th>
-                  <th>Total Fat (g)</th>
-                  <th>Total Protein (g)</th>
-                  <th>Total Calories</th>
-                  <th>Items</th>
-                  <th>Notes</th>
-                  <th>Details</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((session) => {
-                  const itemCount = session.lineItems?.length || 0;
-                  const totals = session.totals;
-                  const isExpanded = expandedRows.has(session.id);
+          <div className="meal-journal-container">
+            <div className="meal-journal-table-container">
+              <table className="meal-journal-table">
+                <thead>
+                  <tr>
+                    <th className="date-column">Date</th>
+                    <th className="time-column">Time</th>
+                    <th>Meal Category</th>
+                    <th>Meal Source</th>
+                    <th>BSL (mg/dL)</th>
+                    <th>Total Carbs (g)</th>
+                    <th>Total Fat (g)</th>
+                    <th>Total Protein (g)</th>
+                    <th>Total Calories</th>
+                    <th>Items</th>
+                    <th className="notes-column">Notes</th>
+                    <th>Details</th>
+                    <th className="actions-column">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map((session) => {
+                    const itemCount = session.lineItems?.length || 0;
+                    const totals = session.totals;
+                    const isExpanded = expandedRows.has(session.id);
 
-                  return (
-                    <React.Fragment key={session.id}>
-                      <tr key={session.id}>
-                        <td>{session.sessionDate || '-'}</td>
-                        <td>{session.sessionTime || '-'}</td>
-                        <td>{session.category}</td>
-                        <td>{session.primarySource}</td>
-                        <td className="num-cell">{session.bsl ?? '-'}</td>
-                        <td className="num-cell">{totals ? totals.carbsG : '-'}</td>
-                        <td className="num-cell">{totals ? totals.fatG : '-'}</td>
-                        <td className="num-cell">{totals ? totals.proteinG : '-'}</td>
-                        <td className="num-cell">{totals ? totals.calories : '-'}</td>
-                        <td className="num-cell">{itemCount}</td>
-                        <td>{truncatedNotes(session.notes ?? '')}</td>
-                        <td>
-                          <button
-                            className="btn-small btn-edit"
-                            onClick={() => toggleRowExpansion(session.id)}
-                          >
-                            {isExpanded ? 'Hide items' : 'Show items'}
-                          </button>
-                        </td>
-                        <td>
-                          <button
-                            className="btn-small btn-edit"
-                            onClick={() => alert('Edit functionality not implemented yet')}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn-small btn-delete"
-                            onClick={() => handleDeleteMealEntry(session.id)}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                      {isExpanded && session.lineItems && session.lineItems.length > 0 && (
-                        <tr key={`${session.id}-details`} className="details-row">
-                          <td colSpan={13} className="details-cell">
-                            <div className="meal-items-detail">
-                              <div className="notes-box">
-                                <label className="notes-box-label" htmlFor={`notes-${session.id}`}>
-                                  Notes
-                                </label>
-                                <textarea
-                                  id={`notes-${session.id}`}
-                                  value={notesDrafts[session.id] ?? ''}
-                                  onChange={(e) => handleDraftChange(session.id, e.target.value)}
-                                  rows={3}
-                                />
-                                <div className="notes-actions">
-                                  <button
-                                    className="btn-small btn-save"
-                                    onClick={() => handleSaveNotes(session.id)}
-                                  >
-                                    Save Notes
-                                  </button>
-                                </div>
-                              </div>
-
-                              <h4>Meal Items</h4>
-                              <div className="detail-table-container">
-                                <table className="detail-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Item</th>
-                                      <th>Size/Serving</th>
-                                      <th>Qty Having</th>
-                                      <th>Carbs (g)</th>
-                                      <th>Fat (g)</th>
-                                      <th>Protein (g)</th>
-                                      <th>Calories</th>
-                                      <th>Sodium (mg)</th>
-                                      <th>Fiber (g)</th>
-                                      <th>Sugar (g)</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {session.lineItems.map((item) => {
-                                      let sizeDisplay: string;
-                                      if (item.source === 'Fast Food' || item.source === 'Restaurant') {
-                                        const qty = item.perQuantityRaw || '1';
-                                        const unit = item.perType || 'order';
-                                        sizeDisplay = `${qty} ${unit}`;
-                                      } else {
-                                        sizeDisplay = item.servingSize
-                                          ? `${item.servingSize} (per ${item.perQuantityRaw || '1'} ${item.perType || 'serving'})`
-                                          : item.notes || '-';
-                                      }
-
-                                      return (
-                                        <tr key={item.id}>
-                                          <td>{item.name}</td>
-                                          <td className="size-cell">{sizeDisplay}</td>
-                                          <td className="num-cell">{item.quantity.toFixed(2)}</td>
-                                          <td className="num-cell">{item.macros.carbsG}</td>
-                                          <td className="num-cell">{item.macros.fatG}</td>
-                                          <td className="num-cell">{item.macros.proteinG}</td>
-                                          <td className="num-cell">{item.macros.calories}</td>
-                                          <td className="num-cell">{item.macros.sodiumMg}</td>
-                                          <td className="num-cell">{item.macros.fiberG}</td>
-                                          <td className="num-cell">{item.macros.sugarG}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
+                    return (
+                      <React.Fragment key={session.id}>
+                        <tr key={session.id}>
+                          <td>{session.sessionDate || '-'}</td>
+                          <td>{session.sessionTime || '-'}</td>
+                          <td>{session.category}</td>
+                          <td>{session.primarySource}</td>
+                          <td className="num-cell">{session.bsl ?? '-'}</td>
+                          <td className="num-cell">{totals ? totals.carbsG : '-'}</td>
+                          <td className="num-cell">{totals ? totals.fatG : '-'}</td>
+                          <td className="num-cell">{totals ? totals.proteinG : '-'}</td>
+                          <td className="num-cell">{totals ? totals.calories : '-'}</td>
+                          <td className="num-cell">{itemCount}</td>
+                          {renderNotesColumn(session)}
+                          <td>
+                            <button
+                              className="btn-small btn-edit"
+                              onClick={() => toggleRowExpansion(session.id)}
+                            >
+                              {isExpanded ? 'Hide items' : 'Show items'}
+                            </button>
+                          </td>
+                          <td>
+                            <button
+                              className="btn-small btn-edit"
+                              onClick={() => alert('Edit functionality not implemented yet')}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn-small btn-delete"
+                              onClick={() => handleDeleteMealEntry(session.id)}
+                            >
+                              Delete
+                            </button>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {isExpanded && session.lineItems && session.lineItems.length > 0 && (
+                          <tr key={`${session.id}-details`} className="details-row">
+                            <td colSpan={13} className="details-cell">
+                              <div className="meal-items-detail">
+                                <div className="notes-box">
+                                  <label className="notes-box-label" htmlFor={`notes-${session.id}`}>
+                                    Notes
+                                  </label>
+                                  <textarea
+                                    id={`notes-${session.id}`}
+                                    value={notesDrafts[session.id] ?? ''}
+                                    onChange={(e) => handleDraftChange(session.id, e.target.value)}
+                                    rows={3}
+                                  />
+                                  <div className="notes-actions">
+                                    <button
+                                      className="btn-small btn-save"
+                                      onClick={() => handleSaveNotes(session.id)}
+                                    >
+                                      Save Notes
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <h4>Meal Items</h4>
+                                <div className="detail-table-container">
+                                  <table className="detail-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Item</th>
+                                        <th>Size/Serving</th>
+                                        <th>Qty Having</th>
+                                        <th>Carbs (g)</th>
+                                        <th>Fat (g)</th>
+                                        <th>Protein (g)</th>
+                                        <th>Calories</th>
+                                        <th>Sodium (mg)</th>
+                                        <th>Fiber (g)</th>
+                                        <th>Sugar (g)</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {session.lineItems.map((item) => {
+                                        let sizeDisplay: string;
+                                        if (item.source === 'Fast Food' || item.source === 'Restaurant') {
+                                          const qty = item.perQuantityRaw || '1';
+                                          const unit = item.perType || 'order';
+                                          sizeDisplay = `${qty} ${unit}`;
+                                        } else {
+                                          sizeDisplay = item.servingSize
+                                            ? `${item.servingSize} (per ${item.perQuantityRaw || '1'} ${item.perType || 'serving'})`
+                                            : item.notes || '-';
+                                        }
+
+                                        return (
+                                          <tr key={item.id}>
+                                            <td>{item.name}</td>
+                                            <td className="size-cell">{sizeDisplay}</td>
+                                            <td className="num-cell">{item.quantity.toFixed(2)}</td>
+                                            <td className="num-cell">{item.macros.carbsG}</td>
+                                            <td className="num-cell">{item.macros.fatG}</td>
+                                            <td className="num-cell">{item.macros.proteinG}</td>
+                                            <td className="num-cell">{item.macros.calories}</td>
+                                            <td className="num-cell">{item.macros.sodiumMg}</td>
+                                            <td className="num-cell">{item.macros.fiberG}</td>
+                                            <td className="num-cell">{item.macros.sugarG}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

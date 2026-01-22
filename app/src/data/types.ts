@@ -105,6 +105,9 @@ export interface MealLineItem {
   perType?: string; // unit that perQuantityRaw refers to (serving, g, oz, etc.)
   order: number; // display order
   createdAt: number;
+  fiberG?: number; // Fiber in grams
+  sugarG?: number; // Sugar in grams
+  amountHaving?: number; // Amount consumed
 }
 
 // Current meal session (dashboard working state)

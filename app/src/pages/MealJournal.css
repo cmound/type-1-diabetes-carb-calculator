@@ -102,3 +102,79 @@
   justify-content: flex-end;
 }
 
+/* Adjust table container for horizontal scrolling */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Set minimum width for the table to improve readability */
+.food-table {
+  min-width: 1200px;
+  border-collapse: collapse;
+}
+
+/* Add padding and prevent wrapping in header cells */
+.food-table th {
+  padding: 8px 12px;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* Add padding to body cells */
+.food-table td {
+  padding: 8px 12px;
+}
+
+.meal-journal-container {
+  max-width: 1200px; /* Match app container width */
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.meal-journal-table-container {
+  overflow-x: auto; /* Enable horizontal scrolling */
+  scrollbar-gutter: stable both-edges; /* Ensure consistent scrollbar space */
+  padding-right: 16px; /* Add breathing room for the last column */
+}
+
+.meal-journal-table {
+  width: 100%;
+  table-layout: fixed; /* Ensure consistent column widths */
+  border-collapse: collapse;
+  min-width: 1200px; /* Ensure table has a sensible minimum width */
+}
+
+.meal-journal-table th, .meal-journal-table td {
+  padding: 8px 10px; /* Improve spacing */
+  vertical-align: middle; /* Align content vertically */
+  text-overflow: ellipsis; /* Handle overflow */
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.meal-journal-table th:last-child, .meal-journal-table td:last-child {
+  padding-right: 18px; /* Prevent last column from touching the edge */
+}
+
+.meal-journal-table .date-column {
+  min-width: 120px; /* Ensure Date column is wide enough */
+  text-align: center;
+}
+
+.meal-journal-table .time-column {
+  min-width: 100px; /* Ensure Time column is wide enough */
+  text-align: center;
+}
+
+.meal-journal-table .notes-column {
+  min-width: 300px; /* Ensure Notes column has enough space */
+  text-align: left;
+}
+
+.meal-journal-table .actions-column {
+  min-width: 140px; /* Prevent clipping of action buttons */
+  white-space: nowrap;
+  text-align: center; /* Center align actions */
+}
+

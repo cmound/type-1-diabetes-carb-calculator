@@ -556,6 +556,10 @@ export function Dashboard() {
   }
 
   function handleBslChange(value: string) {
+    if (value.length > 3) {
+      return; // Prevent input longer than 3 characters
+    }
+
     if (currentBsl === '' && value !== '') {
       touchSessionTime();
     }
@@ -978,273 +982,139 @@ export function Dashboard() {
           }}
         />
       ) : (
-        <form 
-          className="food-form surface" 
-          onSubmit={(e) => e.preventDefault()} 
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-              e.preventDefault();
-              handleAddFood();
-            }
-          }}
-          noValidate
-        >
-        <h3>Add Food Item</h3>
+        <form className="food-form surface" onSubmit={(e) => e.preventDefault()} noValidate>
+          <h3>Add Food Item</h3>
 
-        {formError && <div className="form-error">{formError}</div>}
+          {formError && <div className="form-error">{formError}</div>}
 
-        {/* Conditional form rendering based on Meal Source */}
-        {isEatingOut ? (
-          // Fast Food / Restaurant: Chain, Food Item, Per Quantity, Per Qty Unit (NO Serving Size)
-          <div className="form-row food-top-row food-top-row-fastfood">
-            <div className="form-field">
-              <label htmlFor="chain">Chain *</label>
-              <input
-                type="text"
-                id="chain"
-                value={formData.chain}
-                onChange={(e) => handleFormChange('chain', e.target.value)}
-                placeholder="ex: Chick-fil-A"
-                list="chain-options"
-                aria-required="true"
-              />
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="food-item">Food Item *</label>
-              <input
-                type="text"
-                id="food-item"
-                value={formData.foodItem}
-                onChange={(e) => handleFoodItemChange(e.target.value)}
-                placeholder="ex: Nuggets"
-                list="food-item-options"
-                aria-required="true"
-              />
-            </div>
-
-            <div className="form-field form-field-small">
-              <label htmlFor="per-quantity">Per Quantity *</label>
-              <input
-                type="text"
-                id="per-quantity"
-                value={formData.perQuantityRaw}
-                onChange={(e) => handleFormChange('perQuantityRaw', e.target.value)}
-                placeholder="1 or 2/3"
-                title="Enter decimal or fraction (e.g., 1, 0.5, 1/2, 2 1/3)"
-                aria-required="true"
-              />
-            </div>
-
-            <div className="form-field form-field-small">
-              <label htmlFor="per-qty-unit">Per Qty Unit *</label>
-              <select
-                id="per-qty-unit"
-                value={formData.perQuantityUnit ?? 'order'}
-                onChange={(e) => handleFormChange('perQuantityUnit', e.target.value as PerQuantityUnit)}
-                aria-required="true"
-              >
-                {perQuantityUnitOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        ) : (
-          // Home Meal, Packaged Meal, Custom: Standard form with Per Unit
-          <div className="form-row food-top-row">
-            <div className="form-field">
-              <label htmlFor="food-name">Food Name *</label>
-              <input
-                type="text"
-                id="food-name"
-                value={formData.name}
-                onChange={(e) => handleFormChange('name', e.target.value)}
-                aria-required="true"
-              />
-            </div>
-
-            <div className="form-field form-field-small">
-              <label htmlFor="serving-size">Serving Size *</label>
-              <div className="serving-size-controls">
+          {/* Conditional form rendering based on Meal Source */}
+          {isEatingOut ? (
+            // Fast Food / Restaurant: Chain, Food Item, Per Quantity, Per Qty Unit (NO Serving Size)
+            <div className="form-row food-top-row food-top-row-fastfood">
+              <div className="form-field">
+                <label htmlFor="chain">Chain *</label>
                 <input
-                  type="number"
-                  id="serving-size"
-                  value={formData.servingSizeAmount}
-                  onChange={(e) => handleFormChange('servingSizeAmount', e.target.value)}
-                  min="0"
-                  step="any"
+                  type="text"
+                  id="chain"
+                  value={formData.chain}
+                  onChange={(e) => handleFormChange('chain', e.target.value)}
+                  placeholder="ex: Chick-fil-A"
+                  list="chain-options"
                   aria-required="true"
                 />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="food-item">Food Item *</label>
+                <input
+                  type="text"
+                  id="food-item"
+                  value={formData.foodItem}
+                  onChange={(e) => handleFoodItemChange(e.target.value)}
+                  placeholder="ex: Nuggets"
+                  list="food-item-options"
+                  aria-required="true"
+                />
+              </div>
+
+              <div className="form-field form-field-small">
+                <label htmlFor="per-quantity">Per Quantity *</label>
+                <input
+                  type="text"
+                  id="per-quantity"
+                  value={formData.perQuantityRaw}
+                  onChange={(e) => handleFormChange('perQuantityRaw', e.target.value)}
+                  placeholder="1 or 2/3"
+                  title="Enter decimal or fraction (e.g., 1, 0.5, 1/2, 2 1/3)"
+                  aria-required="true"
+                />
+              </div>
+
+              <div className="form-field form-field-small">
+                <label htmlFor="per-qty-unit">Per Qty Unit *</label>
                 <select
-                  value={formData.servingSizeUnit}
-                  onChange={(e) => handleFormChange('servingSizeUnit', e.target.value)}
-                  aria-label="Serving size unit"
+                  id="per-qty-unit"
+                  value={formData.perQuantityUnit ?? 'order'}
+                  onChange={(e) => handleFormChange('perQuantityUnit', e.target.value as PerQuantityUnit)}
+                  aria-required="true"
                 >
-                  <option value="g">g</option>
-                  <option value="mL">mL</option>
-                  <option value="cup">cup</option>
-                  <option value="tbsp">tbsp</option>
-                  <option value="tsp">tsp</option>
-                  <option value="fl oz">fl oz</option>
-                  <option value="oz">oz</option>
-                  <option value="piece">piece</option>
+                  {perQuantityUnitOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </select>
               </div>
             </div>
+          ) : (
+            // Home Meal, Packaged Meal, Custom: Standard form with Per Unit
+            <div className="form-row food-top-row">
+              <div className="form-field">
+                <label htmlFor="food-name">Food Name *</label>
+                <input
+                  type="text"
+                  id="food-name"
+                  value={formData.name}
+                  onChange={(e) => handleFormChange('name', e.target.value)}
+                  aria-required="true"
+                />
+              </div>
 
-            <div className="form-field form-field-small">
-              <label htmlFor="per-quantity">Per Quantity *</label>
-              <input
-                type="text"
-                id="per-quantity"
-                value={formData.perQuantityRaw}
-                onChange={(e) => handleFormChange('perQuantityRaw', e.target.value)}
-                placeholder="1 or 2/3"
-                title="Enter decimal or fraction (e.g., 1, 0.5, 1/2, 2 1/3)"
-                aria-required="true"
-              />
+              <div className="form-field form-field-small">
+                <label htmlFor="serving-size">Serving Size *</label>
+                <div className="serving-size-controls">
+                  <input
+                    type="number"
+                    id="serving-size"
+                    value={formData.servingSizeAmount}
+                    onChange={(e) => handleFormChange('servingSizeAmount', e.target.value)}
+                    min="0"
+                    step="any"
+                    aria-required="true"
+                  />
+                  <select
+                    value={formData.servingSizeUnit}
+                    onChange={(e) => handleFormChange('servingSizeUnit', e.target.value)}
+                    aria-label="Serving size unit"
+                  >
+                    <option value="g">g</option>
+                    <option value="mL">mL</option>
+                    <option value="cup">cup</option>
+                    <option value="tbsp">tbsp</option>
+                    <option value="tsp">tsp</option>
+                    <option value="fl oz">fl oz</option>
+                    <option value="oz">oz</option>
+                    <option value="piece">piece</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-field form-field-small">
+                <label htmlFor="per-quantity">Per Quantity *</label>
+                <input
+                  type="text"
+                  id="per-quantity"
+                  value={formData.perQuantityRaw}
+                  onChange={(e) => handleFormChange('perQuantityRaw', e.target.value)}
+                  placeholder="1 or 2/3"
+                  title="Enter decimal or fraction (e.g., 1, 0.5, 1/2, 2 1/3)"
+                  aria-required="true"
+                />
+              </div>
+
+              <div className="form-field form-field-small">
+                <label htmlFor="per-unit">Per Unit *</label>
+                <select
+                  id="per-unit"
+                  value={formData.perUnit}
+                  onChange={(e) => handleFormChange('perUnit', e.target.value)}
+                  aria-required="true"
+                >
+                  {perUnitOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-
-            <div className="form-field form-field-small">
-              <label htmlFor="per-unit">Per Unit *</label>
-              <select
-                id="per-unit"
-                value={formData.perUnit}
-                onChange={(e) => handleFormChange('perUnit', e.target.value)}
-                aria-required="true"
-              >
-                {perUnitOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {isEatingOut && (
-          <div className="form-field form-field-small" style={{ alignSelf: 'flex-end' }}>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={saveToCatalog}
-                onChange={(e) => setSaveToCatalog(e.target.checked)}
-              />
-              Save manual entry to Fast Food / Restaurants Library
-            </label>
-          </div>
-        )}
-
-        <datalist id="chain-options">
-          {chainOptions.map((chain) => (
-            <option key={chain} value={chain} />
-          ))}
-        </datalist>
-        <datalist id="food-item-options">
-          {foodItemOptions.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
-
-        <div className="form-row">
-          <div className="form-field form-field-small">
-            <label htmlFor="calories">Calories</label>
-            <input
-              type="number"
-              id="calories"
-              value={formData.calories}
-              onChange={(e) => handleFormChange('calories', e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="form-field form-field-small">
-            <label htmlFor="fat">Fat (g)</label>
-            <input
-              type="number"
-              id="fat"
-              value={formData.fatG}
-              onChange={(e) => handleFormChange('fatG', e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="form-field form-field-small">
-            <label htmlFor="sodium">Sodium (mg)</label>
-            <input
-              type="number"
-              id="sodium"
-              value={formData.sodiumMg}
-              onChange={(e) => handleFormChange('sodiumMg', e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="form-field form-field-small">
-            <label htmlFor="carbs">Carbs (g)</label>
-            <input
-              type="number"
-              id="carbs"
-              value={formData.carbsG}
-              onChange={(e) => handleFormChange('carbsG', e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="form-field form-field-small">
-            <label htmlFor="fiber">Fiber (g)</label>
-            <input
-              type="number"
-              id="fiber"
-              value={formData.fiberG}
-              onChange={(e) => handleFormChange('fiberG', e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="form-field form-field-small">
-            <label htmlFor="sugar">Sugar (g)</label>
-            <input
-              type="number"
-              id="sugar"
-              value={formData.sugarG}
-              onChange={(e) => handleFormChange('sugarG', e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="form-field form-field-small">
-            <label htmlFor="protein">Protein (g)</label>
-            <input
-              type="number"
-              id="protein"
-              value={formData.proteinG}
-              onChange={(e) => handleFormChange('proteinG', e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-field form-field-small">
-            <label htmlFor="amount-having">Amount Having *</label>
-            <input
-              type="number"
-              id="amount-having"
-              value={formData.amountHaving}
-              onChange={(e) => handleFormChange('amountHaving', e.target.value)}
-              min="0"
-              step="0.01"
-              aria-required="true"
-            />
-          </div>
+          )}
 
           {isEatingOut && (
             <div className="form-field form-field-small" style={{ alignSelf: 'flex-end' }}>
@@ -1259,13 +1129,137 @@ export function Dashboard() {
             </div>
           )}
 
-          <div className="form-actions">
-            <button type="button" className="btn-primary" onClick={handleAddFood}>
-              Add to Meal Log
-            </button>
+          <datalist id="chain-options">
+            {chainOptions.map((chain) => (
+              <option key={chain} value={chain} />
+            ))}
+          </datalist>
+          <datalist id="food-item-options">
+            {foodItemOptions.map((item) => (
+              <option key={item} value={item} />
+            ))}
+          </datalist>
+
+          <div className="form-row">
+            <div className="form-field form-field-small">
+              <label htmlFor="calories">Calories</label>
+              <input
+                type="number"
+                id="calories"
+                value={formData.calories}
+                onChange={(e) => handleFormChange('calories', e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-field form-field-small">
+              <label htmlFor="fat">Fat (g)</label>
+              <input
+                type="number"
+                id="fat"
+                value={formData.fatG}
+                onChange={(e) => handleFormChange('fatG', e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-field form-field-small">
+              <label htmlFor="sodium">Sodium (mg)</label>
+              <input
+                type="number"
+                id="sodium"
+                value={formData.sodiumMg}
+                onChange={(e) => handleFormChange('sodiumMg', e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-field form-field-small">
+              <label htmlFor="carbs">Carbs (g)</label>
+              <input
+                type="number"
+                id="carbs"
+                value={formData.carbsG}
+                onChange={(e) => handleFormChange('carbsG', e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-field form-field-small">
+              <label htmlFor="fiber">Fiber (g)</label>
+              <input
+                type="number"
+                id="fiber"
+                value={formData.fiberG}
+                onChange={(e) => handleFormChange('fiberG', e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-field form-field-small">
+              <label htmlFor="sugar">Sugar (g)</label>
+              <input
+                type="number"
+                id="sugar"
+                value={formData.sugarG}
+                onChange={(e) => handleFormChange('sugarG', e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-field form-field-small">
+              <label htmlFor="protein">Protein (g)</label>
+              <input
+                type="number"
+                id="protein"
+                value={formData.proteinG}
+                onChange={(e) => handleFormChange('proteinG', e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
           </div>
-        </div>
-      </form>
+
+          <div className="form-row">
+            <div className="form-field form-field-small">
+              <label htmlFor="amount-having">Amount Having *</label>
+              <input
+                type="number"
+                id="amount-having"
+                value={formData.amountHaving}
+                onChange={(e) => handleFormChange('amountHaving', e.target.value)}
+                min="0"
+                step="0.01"
+                aria-required="true"
+              />
+            </div>
+
+            {isEatingOut && (
+              <div className="form-field form-field-small" style={{ alignSelf: 'flex-end' }}>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={saveToCatalog}
+                    onChange={(e) => setSaveToCatalog(e.target.checked)}
+                  />
+                  Save manual entry to Fast Food / Restaurants Library
+                </label>
+              </div>
+            )}
+
+            <div className="form-actions">
+              <button type="submit" className="btn-primary">
+                Add to Meal Log
+              </button>
+            </div>
+          </div>
+        </form>
       )}
 
       {showCatalogPicker && (
@@ -1319,7 +1313,7 @@ export function Dashboard() {
                   <th>Sugar (g)</th>
                   <th>Protein (g)</th>
                   <th>Qty Having</th>
-                  <th>Actions</th>
+                  <th className="actions-cell">Actions</th>
                 </tr>
               </thead>
               <tbody>

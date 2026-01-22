@@ -63,7 +63,14 @@
 .app-main {
   flex: 1;
   padding: var(--spacing-xl);
-  max-width: 1400px;
+  max-width: 1600px; /* Increased max width for larger screens */
   width: 100%;
   margin: 0 auto;
+}
+
+.app-container {
+  max-width: 1600px; /* Match the main content area width */
+  width: 100%;
+  margin: 0 auto; /* Center horizontally */
+  padding: 0 24px; /* Add horizontal padding */
 }

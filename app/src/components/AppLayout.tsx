@@ -18,29 +18,33 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="app-layout">
-      <header className="app-header">
-        <h1>Type 1 Diabetes Calculator</h1>
-      </header>
+      <div className="app-container"> {/* Centered container */}
+        <header className="app-header">
+          <h1>Type 1 Diabetes Calculator</h1>
+        </header>
 
-      <nav className="app-nav" role="navigation" aria-label="Main navigation">
-        <ul className="nav-list">
-          {navItems.map((item) => (
-            <li key={item.path} className="nav-item">
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `nav-link ${isActive ? 'nav-link-active' : ''}`
-                }
-                end={item.path === '/'}
-              >
-                {item.label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+        <nav className="app-nav" role="navigation" aria-label="Main navigation">
+          <ul className="nav-list">
+            {navItems.map((item) => (
+              <li key={item.path} className="nav-item">
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `nav-link ${isActive ? 'nav-link-active' : ''}`
+                  }
+                  end={item.path === '/'}
+                >
+                  {item.label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
 
-      <main className="app-main">{children}</main>
+      <div className="app-container"> {/* Centered container for main content */}
+        <main className="app-main">{children}</main>
+      </div>
     </div>
   );
 }
