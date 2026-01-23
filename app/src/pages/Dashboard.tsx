@@ -180,20 +180,20 @@ export function Dashboard() {
   function touchSessionTime() {
     const now = Date.now();
     const date = new Date(now);
-    
+
     // Format date as MM/DD/YYYY
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const year = date.getFullYear();
     const formattedDate = `${month}/${day}/${year}`;
-    
+
     // Format time as h:mm AM/PM (no leading zero on hour)
     let hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const ampm = hours >= 12 ? 'PM' : 'AM';
     hours = hours % 12 || 12; // Convert to 12-hour format, 0 becomes 12
     const formattedTime = `${hours}:${minutes} ${ampm}`;
-    
+
     setSessionDate(formattedDate);
     setSessionTime(formattedTime);
   }
@@ -320,7 +320,7 @@ export function Dashboard() {
   function deriveBaseMacros(lineItem: MealLineItem): MacroTotals {
     const isFastFoodOrRestaurant = lineItem.source === 'Fast Food' || lineItem.source === 'Restaurant';
     const isPhysical = isPhysicalBasisUnit(lineItem.perType);
-    
+
     // For Fast Food/Restaurant with physical units, base macros are per serving (quantity)
     // For others, derive base macros using perQuantityRaw
     if (isFastFoodOrRestaurant && isPhysical) {
@@ -335,7 +335,7 @@ export function Dashboard() {
         proteinG: Math.round((lineItem.macros.proteinG / divisor) * 100) / 100,
       };
     }
-    
+
     const perQuantity = parseQuantity(lineItem.perQuantityRaw ?? '1') ?? 1;
     const multiplier = perQuantity > 0 ? lineItem.quantity / perQuantity : 1;
     const divisor = multiplier > 0 ? multiplier : 1;
@@ -492,8 +492,8 @@ export function Dashboard() {
       setPerQuantityDirty(true);
     }
     // Clear picked catalog ID when user manually edits chain, foodItem, or macros
-    if (field === 'chain' || field === 'foodItem' || field === 'calories' || field === 'fatG' || 
-        field === 'sodiumMg' || field === 'carbsG' || field === 'fiberG' || field === 'sugarG' || field === 'proteinG') {
+    if (field === 'chain' || field === 'foodItem' || field === 'calories' || field === 'fatG' ||
+      field === 'sodiumMg' || field === 'carbsG' || field === 'fiberG' || field === 'sugarG' || field === 'proteinG') {
       setLastPickedCatalogId(null);
     }
     setFormData({ ...formData, [field]: value });
@@ -556,10 +556,10 @@ export function Dashboard() {
   }
 
   function handleBslChange(value: string) {
-    if (value.length > 3) {
-      return; // Prevent input longer than 3 characters
+    // Only allow up to 3 digits, all numeric
+    if (value.length > 3 || !/^\d*$/.test(value)) {
+      return;
     }
-
     if (currentBsl === '' && value !== '') {
       touchSessionTime();
     }
@@ -647,7 +647,7 @@ export function Dashboard() {
       let servingSize: string | undefined;
       let perType: string;
       let notes: string;
-      
+
       if (isFastFoodOrRestaurant) {
         // For Fast Food/Restaurant: no servingSize, perType is perQuantityUnit
         servingSize = undefined;
@@ -659,10 +659,10 @@ export function Dashboard() {
         perType = formData.perUnit;
         notes = `${formData.perQuantityRaw} ${formData.perUnit}`;
       }
-      
+
       // Build name based on source
-      const itemName = isFastFoodOrRestaurant 
-        ? `${formData.chain} - ${formData.foodItem}` 
+      const itemName = isFastFoodOrRestaurant
+        ? `${formData.chain} - ${formData.foodItem}`
         : formData.name;
 
       await addMealLineItem({
@@ -776,7 +776,7 @@ export function Dashboard() {
 
   async function handleSaveSession() {
     if (!session) return;
-    
+
     // Don't save empty sessions
     if (lineItems.length === 0) {
       alert('Cannot save an empty meal session. Please add at least one food item.');
@@ -801,30 +801,30 @@ export function Dashboard() {
       await saveMealSession(completeSession);
       await upsertEatingOutCatalogFromSession(lineItems);
       await loadFoodCatalog();
-      
+
       // Clear the working state after successful save
       // Delete all line items for this session
       for (const item of lineItems) {
         await deleteMealLineItem(item.id);
       }
-      
+
       // Reset line items display
       setLineItems([]);
-      
+
       // Reset form to initial state
       setFormData(initialFormData);
       setPerQuantityDirty(false);
-      
+
       // Clear BSL and notes
       setCurrentBsl('');
       setSessionNotes('');
-      
+
       // Update timestamp for next meal
       touchSessionTime();
 
       // Refresh saved sessions for prior notes panel
       loadSavedSessions();
-      
+
       alert('✓ Meal session saved successfully!');
     } catch (error) {
       console.error('[Dashboard] Failed to save session:', error);
@@ -875,13 +875,12 @@ export function Dashboard() {
         <div className="session-header-field">
           <label htmlFor="current-bsl">Current BSL:</label>
           <input
-            type="number"
+            type="text"
             id="current-bsl"
             value={currentBsl}
             onChange={(e) => handleBslChange(e.target.value)}
             placeholder="mg/dL"
-            min="0"
-            step="1"
+            maxLength={3}
           />
         </div>
 
@@ -1254,7 +1253,7 @@ export function Dashboard() {
             )}
 
             <div className="form-actions">
-              <button type="submit" className="btn-primary">
+              <button type="submit" className="btn-primary" onClick={handleAddFood}>
                 Add to Meal Log
               </button>
             </div>
@@ -1328,70 +1327,72 @@ export function Dashboard() {
                     sizeDisplay = `${qty} ${unit}${amountDisplay}`;
                   } else {
                     // Other sources: show serving size with per quantity info
-                    sizeDisplay = item.servingSize 
-                      ? `${item.servingSize} (per ${item.perQuantityRaw || '1'} ${item.perType || 'serving'})` 
+                    sizeDisplay = item.servingSize
+                      ? `${item.servingSize} (per ${item.perQuantityRaw || '1'} ${item.perType || 'serving'})`
                       : (item.notes || '-');
                   }
                   return (
-                  <tr key={item.id}>
-                    <td>{item.name}</td>
-                    <td className="size-cell">{sizeDisplay}</td>
-                    <td className="num-cell">{formatNutrient(item.macros.calories, 'calories')}</td>
-                    <td className="num-cell">{formatNutrient(item.macros.fatG, 'fat')}</td>
-                    <td className="num-cell">{formatNutrient(item.macros.sodiumMg, 'sodium')}</td>
-                    <td className="num-cell">{formatNutrient(item.macros.carbsG, 'carbs')}</td>
-                    <td className="num-cell">{formatNutrient(item.macros.fiberG, 'fiber')}</td>
-                    <td className="num-cell">{formatNutrient(item.macros.sugarG, 'sugar')}</td>
-                    <td className="num-cell">{formatNutrient(item.macros.proteinG, 'protein')}</td>
-                    <td className="num-cell">
-                      {editingId === item.id ? (
-                        <input
-                          type="number"
-                          className="inline-edit"
-                          value={editQuantity}
-                          onChange={(e) => setEditQuantity(e.target.value)}
-                          min="0"
-                          step="0.01"
-                          autoFocus
-                        />
-                      ) : (
-                        item.quantity.toFixed(2)
-                      )}
-                    </td>
-                    <td className="actions-cell">
-                      {editingId === item.id ? (
-                        <>
-                          <button
-                            className="btn-small btn-save"
-                            onClick={() => handleEditSave(item)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="btn-small btn-cancel"
-                            onClick={handleEditCancel}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="btn-small btn-edit"
-                            onClick={() => handleEditStart(item)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn-small btn-delete"
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
+                    <tr key={item.id}>
+                      <td>{item.name}</td>
+                      <td className="size-cell">{sizeDisplay}</td>
+                      <td className="num-cell">{formatNutrient(item.macros.calories, 'calories')}</td>
+                      <td className="num-cell">{formatNutrient(item.macros.fatG, 'fat')}</td>
+                      <td className="num-cell">{formatNutrient(item.macros.sodiumMg, 'sodium')}</td>
+                      <td className="num-cell">{formatNutrient(item.macros.carbsG, 'carbs')}</td>
+                      <td className="num-cell">{formatNutrient(item.macros.fiberG, 'fiber')}</td>
+                      <td className="num-cell">{formatNutrient(item.macros.sugarG, 'sugar')}</td>
+                      <td className="num-cell">{formatNutrient(item.macros.proteinG, 'protein')}</td>
+                      <td className="num-cell">
+                        {editingId === item.id ? (
+                          <input
+                            type="number"
+                            className="inline-edit"
+                            value={editQuantity}
+                            onChange={(e) => setEditQuantity(e.target.value)}
+                            min="0"
+                            step="0.01"
+                            autoFocus
+                          />
+                        ) : (
+                          item.quantity.toFixed(2)
+                        )}
+                      </td>
+                      <td className="actions-cell">
+                        {editingId === item.id ? (
+                          <>
+                            <button
+                              className="btn-small btn-save"
+                              onClick={() => handleEditSave(item)}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="btn-small btn-cancel"
+                              onClick={handleEditCancel}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn-small btn-edit"
+                              onClick={() => handleEditStart(item)}
+                              title="Edit"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="btn-small btn-delete"
+                              onClick={() => handleDelete(item.id)}
+                              title="Delete"
+                            >
+                              🗑️
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
