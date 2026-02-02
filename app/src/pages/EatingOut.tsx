@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Papa from 'papaparse';
-import { upsertFoodCatalogItems } from '../data/foodCatalogRepo';
-import { storage } from '../storage';
+import { deleteFoodCatalogItem, listFoodCatalogItems, upsertFoodCatalogItem, upsertFoodCatalogItems } from '../data/foodCatalogRepo';
 import type { FoodCatalogItem, EatingOutSourceType } from '../types/foodCatalog';
 import './EatingOut.css';
 
@@ -267,7 +266,7 @@ export function EatingOut() {
     setLoading(true);
     setError(null);
     try {
-      const results = await storage.listEatingOutItems();
+      const results = await listFoodCatalogItems();
       setItems(results as FoodCatalogItem[]);
     } catch (err) {
       console.error('[EatingOut] Failed to load items', err);
@@ -354,7 +353,7 @@ export function EatingOut() {
 
     try {
       setSaving(true);
-      await storage.updateEatingOutItem(payload);
+      await upsertFoodCatalogItem(payload);
       await loadItems();
       closeModal();
     } catch (err) {
@@ -369,7 +368,7 @@ export function EatingOut() {
     if (!confirm('Delete this item?')) return;
     try {
       setDeletingId(id);
-      await storage.deleteEatingOutItem(id);
+      await deleteFoodCatalogItem(id);
       await loadItems();
     } catch (err) {
       console.error('[EatingOut] Failed to delete item', err);
