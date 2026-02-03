@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Papa from 'papaparse';
-import { upsertFoodCatalogItems } from '../data/foodCatalogRepo';
-import { storage } from '../storage';
+import { deleteFoodCatalogItem, listFoodCatalogItems, upsertFoodCatalogItem, upsertFoodCatalogItems } from '../data/foodCatalogRepo';
 import type { FoodCatalogItem, EatingOutSourceType } from '../types/foodCatalog';
 import './EatingOut.css';
 
@@ -267,8 +266,14 @@ export function EatingOut() {
     setLoading(true);
     setError(null);
     try {
-      const results = await storage.listEatingOutItems();
-      setItems(results as FoodCatalogItem[]);
+      const results = await listFoodCatalogItems();
+      const query = searchTerm.trim().toLowerCase();
+      const filtered = results.filter((item) => {
+        if (filter !== 'ALL' && item.sourceType !== filter) return false;
+        if (!query) return true;
+        return item.chain.toLowerCase().includes(query) || item.itemName.toLowerCase().includes(query);
+      });
+      setItems(filtered as FoodCatalogItem[]);
     } catch (err) {
       console.error('[EatingOut] Failed to load items', err);
       setError('Failed to load items');
@@ -354,7 +359,7 @@ export function EatingOut() {
 
     try {
       setSaving(true);
-      await storage.updateEatingOutItem(payload);
+      await upsertFoodCatalogItem(payload);
       await loadItems();
       closeModal();
     } catch (err) {
@@ -369,7 +374,7 @@ export function EatingOut() {
     if (!confirm('Delete this item?')) return;
     try {
       setDeletingId(id);
-      await storage.deleteEatingOutItem(id);
+      await deleteFoodCatalogItem(id);
       await loadItems();
     } catch (err) {
       console.error('[EatingOut] Failed to delete item', err);
